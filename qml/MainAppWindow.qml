@@ -7,17 +7,18 @@ import "components"
 // The monitor's window, frameless: its own title bar (planet, name, theme
 // switch, window controls), the navigation as a left rail or a top strip, a
 // masthead (host profile, a rotating entry from the Guide, the feed LED), the
-// six tabs and a status line, inside a rounded frame with the CRT tube laid
+// seven tabs and a status line, inside a rounded frame with the CRT tube laid
 // over it in the dark theme. Grips along the edges resize it.
 //
 // Closing hides to the system tray while settings.closeToTray is on and a
 // tray exists; otherwise it quits. Context properties from main.py:
-// settings, telemetry, processes, services, tray.
+// settings, telemetry, processes, services, hwinfo, tray.
 ApplicationWindow {
     id: win
 
     readonly property var tabs: [
         { key: "overview",  label: "OVERVIEW",  source: "OverviewTab.qml" },
+        { key: "sensors",   label: "HARDWARE SENSORS", source: "SensorsTab.qml" },
         { key: "processes", label: "PROCESSES", source: "ProcessesTab.qml" },
         { key: "services",  label: "SYSTEMD UNITS", source: "ServicesTab.qml" },
         { key: "network",   label: "NETWORK",   source: "NetworkTab.qml" },
@@ -31,8 +32,25 @@ ApplicationWindow {
     property bool statusOk: true
     readonly property bool maximized: visibility === Window.Maximized || visibility === Window.FullScreen
     readonly property bool leftNav: settings.tabPosition === "left"
+    // 1 with the rail on the left, 0 with the strip on top; in between while
+    // one slides away and the other slides in.
+    property real navLeft: leftNav ? 1 : 0
+    Behavior on navLeft { NumberAnimation { duration: Theme.animMs + 140; easing.type: Easing.InOutCubic } }
     readonly property real frameRadius: maximized ? 0 : 12
     property bool wasMaximized: false
+
+    // The theme changes under a snapshot of the old look, which then fades out.
+    function applyTheme() {
+        if (Theme.dark === settings.dark) return
+        if (!visible || visibility === Window.Minimized) { Theme.dark = settings.dark; return }
+        frame.grabToImage(function (shot) {
+            themeSnap.width = frame.width
+            themeSnap.height = frame.height
+            themeSnap.source = shot.url
+            themeFade.restart()
+            Theme.dark = settings.dark
+        })
+    }
 
     function showTab(key) {
         var i = tabs.findIndex(t => t.key === key)
@@ -75,7 +93,7 @@ ApplicationWindow {
     font.family: Theme.sans
 
     Component.onCompleted: {
-        Theme.dark = Qt.binding(() => settings.dark)
+        Theme.dark = settings.dark
         width = Math.max(minimumWidth, settings.width)
         height = Math.max(minimumHeight, settings.height)
         showTab(settings.startTab)
@@ -102,6 +120,7 @@ ApplicationWindow {
             if (key) win.showTab(key)
             win.restore()
         }
+        function onDarkChanged() { win.applyTheme() }
     }
     Connections {
         target: tray
@@ -114,6 +133,7 @@ ApplicationWindow {
     Connections { target: Qt.application; function onAboutToQuit() { win.saveGeometry() } }
     Connections { target: processes; function onActionResult(m, ok) { win.report(m, ok) } }
     Connections { target: services; function onActionResult(m, ok) { win.report(m, ok) } }
+    Connections { target: hwinfo; function onActionResult(m, ok) { win.report(m, ok) } }
     Connections { target: telemetry; function onCopied(text) { win.report("COPIED " + text + " TO THE CLIPBOARD", true) } }
 
     Shortcut { sequence: "Ctrl+1"; onActivated: win.currentTab = 0 }
@@ -122,7 +142,8 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+4"; onActivated: win.currentTab = 3 }
     Shortcut { sequence: "Ctrl+5"; onActivated: win.currentTab = 4 }
     Shortcut { sequence: "Ctrl+6"; onActivated: win.currentTab = 5 }
-    Shortcut { sequence: "Ctrl+,"; onActivated: win.currentTab = 5 }
+    Shortcut { sequence: "Ctrl+7"; onActivated: win.currentTab = 6 }
+    Shortcut { sequence: "Ctrl+,"; onActivated: win.showTab("settings") }
     Shortcut { sequence: "Ctrl+T"; onActivated: win.toggleTheme() }
     Shortcut { sequence: StandardKey.Quit; onActivated: { win.saveGeometry(); tray.quit() } }
 
@@ -197,17 +218,25 @@ ApplicationWindow {
                     Layout.fillHeight: true
                     spacing: 0
 
-                    NavRail {
-                        visible: win.leftNav
+                    Item {   // the rail's slot, which it slides out of to the left
+                        visible: win.navLeft > 0
                         Layout.fillHeight: true
-                        Layout.preferredWidth: implicitWidth
-                        tabs: win.tabs
-                        currentIndex: win.currentTab
-                        collapsed: settings.sidebarCollapsed
-                        uptime: win.t.uptime || 0
-                        onSelected: i => win.currentTab = i
-                        onToggleTheme: win.toggleTheme()
-                        onToggleCollapsed: settings.sidebarCollapsed = !settings.sidebarCollapsed
+                        Layout.preferredWidth: rail.width * win.navLeft
+                        clip: true
+                        NavRail {
+                            id: rail
+                            x: width * (win.navLeft - 1)
+                            width: implicitWidth
+                            height: parent.height
+                            opacity: win.navLeft
+                            tabs: win.tabs
+                            currentIndex: win.currentTab
+                            collapsed: settings.sidebarCollapsed
+                            uptime: win.t.uptime || 0
+                            onSelected: i => win.currentTab = i
+                            onToggleTheme: win.toggleTheme()
+                            onToggleCollapsed: settings.sidebarCollapsed = !settings.sidebarCollapsed
+                        }
                     }
 
                     ColumnLayout {
@@ -292,68 +321,79 @@ ApplicationWindow {
                         }
 
                         // ---- top tab strip, with a pill that slides to the current tab ----
+                        // It folds up into the masthead as the rail comes in; the
+                        // negative margin takes back the column's spacing with it.
                         Item {
-                            visible: !win.leftNav
+                            visible: win.navLeft < 1
                             Layout.fillWidth: true
-                            implicitHeight: tabRow.implicitHeight
+                            Layout.preferredHeight: tabRow.implicitHeight * (1 - win.navLeft)
+                            Layout.bottomMargin: -14 * win.navLeft
+                            opacity: 1 - win.navLeft
+                            clip: true
 
                             Item {
-                                id: topPill
-                                readonly property Item target: tabRep.count > win.currentTab ? tabRep.itemAt(win.currentTab) : null
-                                x: target ? target.x : 0
-                                width: target ? target.width : 0
-                                height: tabRow.height
-                                Behavior on x { NumberAnimation { duration: Theme.animMs + 60; easing.type: Easing.OutCubic } }
-                                Behavior on width { NumberAnimation { duration: Theme.animMs + 60; easing.type: Easing.OutCubic } }
-                                Rectangle {   // flat offset shadow
-                                    x: 2; y: 2; width: parent.width - 2; height: parent.height - 2
-                                    radius: Theme.pillRadius
-                                    color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.22) : Theme.charcoal
-                                }
-                                Rectangle {
-                                    width: parent.width - 2; height: parent.height - 2
-                                    radius: Theme.pillRadius
-                                    color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.14) : Theme.coral
-                                    border { width: Theme.dark ? 1 : 2; color: Theme.dark ? Theme.phosphor : Theme.charcoal }
-                                }
-                            }
+                                width: parent.width
+                                height: tabRow.implicitHeight
+                                y: -height * win.navLeft
 
-                            Row {
-                                id: tabRow
-                                spacing: 6
-                                Repeater {
-                                    id: tabRep
-                                    model: win.tabs
-                                    Item {
-                                        id: tabItem
-                                        required property var modelData
-                                        required property int index
-                                        readonly property bool current: win.currentTab === index
-                                        implicitWidth: tabLabel.implicitWidth + 30
-                                        implicitHeight: tabLabel.implicitHeight + 16
-                                        width: implicitWidth
-                                        height: implicitHeight
+                                Item {
+                                    id: topPill
+                                    readonly property Item target: tabRep.count > win.currentTab ? tabRep.itemAt(win.currentTab) : null
+                                    x: target ? target.x : 0
+                                    width: target ? target.width : 0
+                                    height: tabRow.height
+                                    Behavior on x { NumberAnimation { duration: Theme.animMs + 60; easing.type: Easing.OutCubic } }
+                                    Behavior on width { NumberAnimation { duration: Theme.animMs + 60; easing.type: Easing.OutCubic } }
+                                    Rectangle {   // flat offset shadow
+                                        x: 2; y: 2; width: parent.width - 2; height: parent.height - 2
+                                        radius: Theme.pillRadius
+                                        color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.22) : Theme.charcoal
+                                    }
+                                    Rectangle {
+                                        width: parent.width - 2; height: parent.height - 2
+                                        radius: Theme.pillRadius
+                                        color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.14) : Theme.coral
+                                        border { width: Theme.dark ? 1 : 2; color: Theme.dark ? Theme.phosphor : Theme.charcoal }
+                                    }
+                                }
 
-                                        Rectangle {
-                                            width: parent.width - 2; height: parent.height - 2
-                                            radius: Theme.pillRadius
-                                            color: !tabItem.current && tabArea.containsMouse ? Theme.tint(0.06) : "transparent"
-                                            border.width: tabItem.current ? 0 : 1
-                                            border.color: Theme.tint(Theme.dark ? 0.25 : 0.35)
-                                            Text {
-                                                id: tabLabel
-                                                anchors.centerIn: parent
-                                                text: (tabItem.index + 1) + " " + tabItem.modelData.label
-                                                color: tabItem.current ? Theme.ink : Theme.tint(0.7)
-                                                font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 1.2 }
+                                Row {
+                                    id: tabRow
+                                    spacing: 6
+                                    Repeater {
+                                        id: tabRep
+                                        model: win.tabs
+                                        Item {
+                                            id: tabItem
+                                            required property var modelData
+                                            required property int index
+                                            readonly property bool current: win.currentTab === index
+                                            implicitWidth: tabLabel.implicitWidth + 30
+                                            implicitHeight: tabLabel.implicitHeight + 16
+                                            width: implicitWidth
+                                            height: implicitHeight
+
+                                            Rectangle {
+                                                width: parent.width - 2; height: parent.height - 2
+                                                radius: Theme.pillRadius
+                                                color: !tabItem.current && tabArea.containsMouse ? Theme.tint(0.06) : "transparent"
+                                                border.width: tabItem.current ? 0 : 1
+                                                border.color: Theme.tint(Theme.dark ? 0.25 : 0.35)
+                                                Text {
+                                                    id: tabLabel
+                                                    anchors.centerIn: parent
+                                                    text: (tabItem.index + 1) + " " + tabItem.modelData.label
+                                                    color: tabItem.current ? Theme.ink : Theme.tint(0.7)
+                                                    font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 1.2 }
+                                                }
                                             }
-                                        }
-                                        MouseArea {
-                                            id: tabArea
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: win.currentTab = tabItem.index
+                                            MouseArea {
+                                                id: tabArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: win.currentTab = tabItem.index
+                                            }
                                         }
                                     }
                                 }
@@ -362,11 +402,20 @@ ApplicationWindow {
 
                         // ---- tabs ----
                         // Each tab loads the first time it is opened and then stays, so its
-                        // scroll and selection survive switching away.
+                        // scroll and selection survive switching away. The new one fades in
+                        // as it settles a few pixels up.
                         StackLayout {
+                            id: stack
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             currentIndex: win.currentTab
+                            onCurrentIndexChanged: tabEnter.restart()
+                            transform: Translate { id: stackShift }
+                            ParallelAnimation {
+                                id: tabEnter
+                                NumberAnimation { target: stack; property: "opacity"; from: 0; to: 1; duration: Theme.animMs + 40; easing.type: Easing.OutCubic }
+                                NumberAnimation { target: stackShift; property: "y"; from: 8; to: 0; duration: Theme.animMs + 40; easing.type: Easing.OutCubic }
+                            }
                             Repeater {
                                 model: win.tabs
                                 Loader {
@@ -387,7 +436,7 @@ ApplicationWindow {
                             Rectangle { height: 1; Layout.fillWidth: true; Layout.maximumWidth: 18; color: Theme.tint(0.4) }
                             Text {
                                 Layout.fillWidth: true
-                                text: win.status || "ALL SYSTEMS MOSTLY HARMLESS. CTRL+1-6 TABS, CTRL+T THEME."
+                                text: win.status || "ALL SYSTEMS MOSTLY HARMLESS. CTRL+1-7 TABS, CTRL+T THEME."
                                 color: win.status ? (win.statusOk ? Theme.cool : Theme.alert) : Theme.tint(0.5)
                                 elide: Text.ElideRight
                                 font { family: Theme.mono; pixelSize: 11; bold: win.status !== "" }
@@ -435,6 +484,21 @@ ApplicationWindow {
                 Rectangle { width: parent.width; height: 1.5; y: parent.atBottom ? parent.height - height : 0; color: Theme.amber }
                 Rectangle { width: 1.5; height: parent.height; x: parent.atRight ? parent.width - width : 0; color: Theme.amber }
             }
+        }
+    }
+
+    Image {   // the old theme, fading out over the new one
+        id: themeSnap
+        visible: opacity > 0
+        opacity: 0
+        smooth: true
+        NumberAnimation on opacity {
+            id: themeFade
+            running: false
+            from: 1; to: 0
+            duration: Theme.animMs * 2 + 60
+            easing.type: Easing.InOutQuad
+            onFinished: themeSnap.source = ""
         }
     }
 

@@ -2,7 +2,7 @@
 """The Sub-Etha System Monitor: a standalone companion to the Sub-Etha Guide
 widget, in the same two looks (1981 BBC terminal, 2005 film pages).
 
-    subetha-monitor [--tab=overview|processes|services|network|disks|settings]
+    subetha-monitor [--tab=overview|sensors|processes|services|network|disks|settings]
 
 One window per session: a second launch hands its --tab to the running
 window over a local socket, raises it and exits, so the widget's diagnostic
@@ -30,13 +30,14 @@ from PySide6.QtWidgets import QApplication
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+from backend.hwinfo_engine import HwInfoEngine  # noqa: E402
 from backend.process_manager import ProcessManager  # noqa: E402
 from backend.systemd_manager import SystemdManager  # noqa: E402
 from backend.telemetry import Telemetry  # noqa: E402
 from backend.tray import METRICS as TRAY_METRICS, Tray  # noqa: E402
 
 APP_ID = "subetha-monitor"
-TABS = ["overview", "processes", "services", "network", "disks", "settings"]
+TABS = ["overview", "sensors", "processes", "services", "network", "disks", "settings"]
 THEMES = ["dark", "light", "auto"]
 DAY_HOURS = (7, 19)                     # "auto" shows the film pages from 07:00 to 19:00
 INTERVAL_RANGE = (500, 5000)            # telemetry period, ms
@@ -48,6 +49,7 @@ DEFAULTS = {
     "trayMetric": "planet", "trayStyle": "number",
     "tabPosition": "left", "sidebarCollapsed": False, "interval": 1500, "startupTab": "last",
     "columnWidths": {}, "columnOrder": [],
+    "sensorInterval": 1000, "sensorCollapsed": [], "sensorColumnWidths": {},
 }
 
 
@@ -69,6 +71,9 @@ class Settings(QObject):
     startupTabChanged = Signal()
     columnWidthsChanged = Signal()
     columnOrderChanged = Signal()
+    sensorIntervalChanged = Signal()
+    sensorCollapsedChanged = Signal()
+    sensorColumnWidthsChanged = Signal()
     tabRequested = Signal(str)           # a later launch, or the tray, asked for a tab
 
     def __init__(self, tab=None, parent=None):
@@ -158,6 +163,16 @@ class Settings(QObject):
                             _setter("columnWidths", "columnWidthsChanged"), notify=columnWidthsChanged)
     columnOrder = Property("QVariantList", lambda self: self._cfg["columnOrder"],
                            _setter("columnOrder", "columnOrderChanged"), notify=columnOrderChanged)
+    # Hardware Sensors: the polling period (500, 1000 or 2000 ms), the
+    # collapsed groups, and the table's column widths.
+    sensorInterval = Property(int, lambda self: int(self._cfg["sensorInterval"]),
+                              _setter("sensorInterval", "sensorIntervalChanged", lambda v: v in (500, 1000, 2000)),
+                              notify=sensorIntervalChanged)
+    sensorCollapsed = Property("QVariantList", lambda self: self._cfg["sensorCollapsed"],
+                               _setter("sensorCollapsed", "sensorCollapsedChanged"), notify=sensorCollapsedChanged)
+    sensorColumnWidths = Property("QVariantMap", lambda self: self._cfg["sensorColumnWidths"],
+                                  _setter("sensorColumnWidths", "sensorColumnWidthsChanged"),
+                                  notify=sensorColumnWidthsChanged)
     # The theme in force: `theme`, with "auto" resolved by the clock.
     dark = Property(bool, lambda self: self._dark, notify=darkChanged)
     startTab = Property(str, lambda self: self._start_tab, constant=True)
@@ -237,6 +252,9 @@ def build(argv):
     telemetry = Telemetry(app)
     processes = ProcessManager(app)
     services = SystemdManager(app)
+    hwinfo = HwInfoEngine(settings.sensorInterval, settings.sensorCollapsed, app)
+    hwinfo.intervalChanged.connect(lambda: settings.setProperty("sensorInterval", hwinfo.interval))
+    hwinfo.collapsedChanged.connect(lambda: settings.setProperty("sensorCollapsed", hwinfo.collapsed))
     app._server = listen(settings)
     tray = Tray(app, settings, telemetry, os.path.join(HERE, "assets", "subetha-icon.svg"))
 
@@ -249,6 +267,7 @@ def build(argv):
     def shutdown():
         telemetry.stop()
         processes.stop()
+        hwinfo.stop()
     app.aboutToQuit.connect(shutdown)
 
     engine = QQmlApplicationEngine()
@@ -257,11 +276,12 @@ def build(argv):
     ctx.setContextProperty("telemetry", telemetry)
     ctx.setContextProperty("processes", processes)
     ctx.setContextProperty("services", services)
+    ctx.setContextProperty("hwinfo", hwinfo)
     ctx.setContextProperty("tray", tray)
     engine.load(QUrl.fromLocalFile(os.path.join(HERE, "qml", "MainAppWindow.qml")))
     if not engine.rootObjects():
         sys.exit(1)
-    return app, engine, (settings, telemetry, processes, services, tray)
+    return app, engine, (settings, telemetry, processes, services, hwinfo, tray)
 
 
 def main():

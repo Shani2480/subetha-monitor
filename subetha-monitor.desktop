@@ -8,11 +8,15 @@ TryExec=subetha-monitor
 Icon=subetha-monitor
 Terminal=false
 Categories=System;Monitor;Qt;
-Keywords=process;task;manager;monitor;systemd;service;sensor;fan;cpu;gpu;network;disk;h2g2;
+Keywords=process;task;manager;monitor;systemd;service;sensor;hwinfo;temperature;voltage;fan;cpu;gpu;network;disk;h2g2;
 StartupNotify=true
 StartupWMClass=subetha-monitor
 SingleMainWindow=true
-Actions=processes;services;network;disks;settings;
+Actions=sensors;processes;services;network;disks;settings;
+
+[Desktop Action sensors]
+Name=Hardware Sensors
+Exec=subetha-monitor --tab=sensors
 
 [Desktop Action processes]
 Name=Processes

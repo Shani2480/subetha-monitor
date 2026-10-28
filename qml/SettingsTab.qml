@@ -12,7 +12,7 @@ Flickable {
 
     property bool shown: false
     readonly property var startupTabs: [{ value: "last", label: "LAST OPENED" }].concat(
-        settings.tabs.map(k => ({ value: k, label: { overview: "OVERVIEW", processes: "PROCESSES", services: "SYSTEMD UNITS",
+        settings.tabs.map(k => ({ value: k, label: { overview: "OVERVIEW", sensors: "HARDWARE SENSORS", processes: "PROCESSES", services: "SYSTEMD UNITS",
                                                      network: "NETWORK", disks: "STORAGE", settings: "SETTINGS" }[k] })))
 
     clip: true

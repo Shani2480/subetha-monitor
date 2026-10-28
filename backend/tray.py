@@ -15,7 +15,7 @@ from PySide6.QtCore import QBuffer, QByteArray, QObject, QPointF, QRectF, Qt, Pr
 from PySide6.QtGui import QAction, QColor, QFont, QFontMetricsF, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
-TAB_LABELS = [("overview", "Overview"), ("processes", "Processes"), ("services", "Services"),
+TAB_LABELS = [("overview", "Overview"), ("sensors", "Hardware Sensors"), ("processes", "Processes"), ("services", "Services"),
               ("network", "Network"), ("disks", "Storage"), ("settings", "Settings")]
 HINT = "Sub-Etha Monitor is still running in the system tray. Right-click icon to quit."
 

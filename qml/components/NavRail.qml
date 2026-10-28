@@ -21,9 +21,23 @@ Item {
     readonly property int itemHeight: 38
     readonly property int itemSpacing: 6
 
-    implicitWidth: collapsed ? 48 : 200
+    implicitWidth: collapsed ? 48 : 216
     Behavior on implicitWidth { NumberAnimation { duration: Theme.animMs; easing.type: Easing.OutCubic } }
     clip: true
+
+    // What the content is laid out for. It trails `collapsed`: the content
+    // fades out, swaps between names and numbers, and fades back in while
+    // the width animates, so nothing jumps.
+    property bool compact: false
+    property bool ready: false
+    Component.onCompleted: { compact = collapsed; ready = true }
+    onCollapsedChanged: if (ready) swap.restart()
+    SequentialAnimation {
+        id: swap
+        NumberAnimation { target: content; property: "opacity"; to: 0; duration: Theme.animMs / 2; easing.type: Easing.InQuad }
+        ScriptAction { script: rail.compact = rail.collapsed }
+        NumberAnimation { target: content; property: "opacity"; to: 1; duration: Theme.animMs; easing.type: Easing.OutQuad }
+    }
 
     Rectangle {   // the rail's own ground, a shade off the page
         anchors.fill: parent
@@ -36,7 +50,8 @@ Item {
     }
 
     ColumnLayout {
-        anchors { fill: parent; topMargin: 14; bottomMargin: 12; leftMargin: rail.collapsed ? 6 : 12; rightMargin: rail.collapsed ? 8 : 14 }
+        id: content
+        anchors { fill: parent; topMargin: 14; bottomMargin: 12; leftMargin: rail.compact ? 6 : 12; rightMargin: rail.compact ? 8 : 14 }
         spacing: 16
 
         // ---- identity ----
@@ -46,12 +61,12 @@ Item {
             Image {
                 Layout.preferredWidth: 30
                 Layout.preferredHeight: 30
-                Layout.alignment: rail.collapsed ? Qt.AlignHCenter : Qt.AlignLeft
+                Layout.alignment: rail.compact ? Qt.AlignHCenter : Qt.AlignLeft
                 source: "../../assets/subetha-icon.svg"
                 sourceSize: Qt.size(60, 60)
             }
             Text {
-                visible: !rail.collapsed
+                visible: !rail.compact
                 Layout.fillWidth: true
                 text: "SUB-ETHA\nDIAGNOSTICS"
                 color: Theme.ink
@@ -103,11 +118,11 @@ Item {
                     }
                     Text {
                         width: parent.width - 2; height: parent.height - 2
-                        leftPadding: rail.collapsed ? 0 : 10
-                        horizontalAlignment: rail.collapsed ? Text.AlignHCenter : Text.AlignLeft
+                        leftPadding: rail.compact ? 0 : 10
+                        horizontalAlignment: rail.compact ? Text.AlignHCenter : Text.AlignLeft
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
-                        text: rail.collapsed ? String(entry.index + 1)
+                        text: rail.compact ? String(entry.index + 1)
                             : entry.current ? "[ " + entry.modelData.label + " ]"
                             : "  " + entry.modelData.label
                         color: entry.current ? Theme.ink : Theme.tint(0.7)
@@ -119,7 +134,7 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: rail.selected(entry.index)
-                        ToolTip.visible: rail.collapsed && containsMouse
+                        ToolTip.visible: rail.compact && containsMouse
                         ToolTip.delay: 400
                         ToolTip.text: entry.modelData.label + "  (Ctrl+" + (entry.index + 1) + ")"
                     }
@@ -132,31 +147,31 @@ Item {
         // ---- footer ----
         Text {
             Layout.fillWidth: true
-            horizontalAlignment: rail.collapsed ? Text.AlignHCenter : Text.AlignLeft
-            text: rail.collapsed ? "UP" : "UPTIME"
+            horizontalAlignment: rail.compact ? Text.AlignHCenter : Text.AlignLeft
+            text: rail.compact ? "UP" : "UPTIME"
             color: Theme.tint(0.5)
             font { family: Theme.mono; pixelSize: 9; bold: true; letterSpacing: 1.4 }
         }
         Text {
             Layout.topMargin: -12
             Layout.fillWidth: true
-            horizontalAlignment: rail.collapsed ? Text.AlignHCenter : Text.AlignLeft
-            text: rail.collapsed ? Math.floor(rail.uptime / 86400) + "d" : Theme.duration(rail.uptime)
+            horizontalAlignment: rail.compact ? Text.AlignHCenter : Text.AlignLeft
+            text: rail.compact ? Math.floor(rail.uptime / 86400) + "d" : Theme.duration(rail.uptime)
             color: Theme.ink
             elide: Text.ElideRight
-            font { family: Theme.mono; pixelSize: rail.collapsed ? 11 : 15; bold: true }
+            font { family: Theme.mono; pixelSize: rail.compact ? 11 : 15; bold: true }
         }
         GuideButton {
             Layout.fillWidth: true
-            text: rail.collapsed ? (Theme.dark ? "◐" : "◑") : (Theme.dark ? "1981 ▸ 2005" : "2005 ▸ 1981")
-            brackets: !rail.collapsed
+            text: rail.compact ? (Theme.dark ? "◐" : "◑") : (Theme.dark ? "1981 ▸ 2005" : "2005 ▸ 1981")
+            brackets: !rail.compact
             pixelSize: 11
             tone: Theme.dark ? Theme.amber : Theme.coral
             onClicked: rail.toggleTheme()
         }
         GuideButton {
             Layout.fillWidth: true
-            text: rail.collapsed ? "»" : "« COLLAPSE"
+            text: rail.compact ? "»" : "« COLLAPSE"
             brackets: false
             pixelSize: 11
             onClicked: rail.toggleCollapsed()
