@@ -5,8 +5,8 @@ import "components"
 
 // The monitor's preferences: what closing and minimizing do with the tray,
 // where the tabs sit, how often telemetry is sampled, which tab opens first,
-// and the theme, picked from a preview of each. Every change is saved to
-// settings.configPath at once.
+// the skin (shared with the Sub-Etha Guide widget) and the theme, picked
+// from a preview of each. Every change is saved to settings.configPath at once.
 Flickable {
     id: tab
 
@@ -32,14 +32,16 @@ Flickable {
     }
 
     // A thumbnail of one look, drawn in its own palette whatever the current
-    // theme: title bar, rail with the pill, a card with a meter.
+    // theme (under a skin, that variant's): title bar, rail with the pill, a
+    // card with a meter.
     component Preview: Item {
         id: pv
         property bool look: true          // true: the terminal
-        readonly property color bg: look ? Theme.crtBlack : Theme.cream
-        readonly property color card: look ? Theme.crtCard : Theme.paper
-        readonly property color ink: look ? Theme.phosphor : Theme.charcoal
-        readonly property color pillColor: look ? Qt.rgba(0, 1, 0.4, 0.2) : Theme.coral
+        readonly property var pal: Theme.look(look)
+        readonly property color bg: pal.bg
+        readonly property color card: pal.card
+        readonly property color ink: pal.ink
+        readonly property color pillColor: pal.pill
         Rectangle {
             anchors.fill: parent
             color: pv.bg
@@ -57,9 +59,9 @@ Flickable {
         }
         Rectangle {   // the rail and its pill
             x: 2; y: 17; width: 38; height: parent.height - 19
-            color: pv.look ? Qt.rgba(0, 1, 0.4, 0.04) : Theme.paper
+            color: Qt.tint(pv.bg, Qt.rgba(pv.ink.r, pv.ink.g, pv.ink.b, 0.04))
             Rectangle { x: 5; y: 21; width: 28; height: 8; radius: 2; color: pv.pillColor
-                        border { width: 1; color: pv.look ? Theme.phosphor : Theme.charcoal } }
+                        border { width: 1; color: pv.ink } }
             Repeater { model: 4; Rectangle { required property int index; x: 8; y: 13 + index * 12
                                               width: 18; height: 2; color: pv.ink; opacity: 0.6 } }
         }
@@ -67,40 +69,15 @@ Flickable {
             x: 48; y: 24; width: parent.width - 58; height: parent.height - 34
             radius: pv.look ? 2 : 6
             color: pv.card
-            border { width: pv.look ? 1 : 2; color: pv.look ? Qt.rgba(0, 1, 0.4, 0.5) : Theme.charcoal }
+            border { width: pv.look ? 1 : 2; color: pv.look ? Qt.rgba(pv.ink.r, pv.ink.g, pv.ink.b, 0.5) : pv.ink }
             Rectangle { x: 8; y: 8; width: parent.width * 0.5; height: 3; color: pv.ink }
             Rectangle { x: 8; y: 18; width: parent.width - 16; height: 6; color: "transparent"; border { width: 1; color: pv.ink }
-                        Rectangle { width: parent.width * 0.6; height: parent.height; color: pv.look ? Theme.phosphor : Theme.teal } }
+                        Rectangle { width: parent.width * 0.6; height: parent.height; color: pv.pal.good } }
             Rectangle { x: 8; y: 30; width: parent.width * 0.35; height: 8; radius: 4
-                        color: pv.look ? "transparent" : Theme.mustard; border { width: 1; color: pv.look ? Theme.amber : Theme.charcoal } }
+                        color: pv.look ? "transparent" : pv.pal.accent; border { width: 1; color: pv.look ? pv.pal.accent : pv.ink } }
         }
     }
 
-    component ThemeCard: Item {
-        id: tc
-        property string key
-        property string title
-        property string blurb
-        readonly property bool selected: settings.theme === key
-        default property alias preview: frameSlot.data
-        implicitWidth: 250
-        implicitHeight: col.implicitHeight + 24
-
-        Rectangle {   // flat shadow (light)
-            visible: Theme.flatShadow
-            x: 2; y: 2; width: parent.width - 2; height: parent.height - 2
-            radius: Theme.outerRadius
-            color: Theme.charcoal
-        }
-        Rectangle {
-            width: parent.width - 2; height: parent.height - 2
-            radius: Theme.outerRadius
-            // Opaque on the film pages, or the shadow would show through.
-            color: Theme.dark ? (tc.selected ? Theme.withAlpha(Theme.phosphor, 0.08) : area.containsMouse ? Theme.tint(0.05) : Theme.card)
-                 : tc.selected ? Qt.tint(Theme.cream, Theme.withAlpha(Theme.mustard, 0.45))
-                 : Qt.tint(Theme.card, area.containsMouse ? Theme.tint(0.05) : "transparent")
-            border { width: tc.selected ? 2 : (Theme.dark ? 1 : 2); color: tc.selected ? Theme.accent : Theme.dark ? Theme.tint(0.4) : Theme.charcoal }
-        }
         ColumnLayout {
             id: col
             x: 12; y: 12
@@ -253,6 +230,40 @@ Flickable {
                     onActivated: settings.startupTab = currentValue
                 }
             }
+        }
+
+        // ---- skin ----
+        GuideCard {
+            Layout.fillWidth: true
+            title: "SKIN"
+            subtitle: "The Guide's own look, or a skin from the widget's Theme Store, installed in " + themes.themesDir
+            RowLayout {
+                spacing: 12
+                Label { text: "ACTIVE SKIN"; Layout.preferredWidth: 220 }
+                GuideCombo {
+                    id: skinPicker
+                    implicitWidth: 360
+                    textRole: "label"
+                    valueRole: "value"
+                    model: Theme.choices
+                    function sync() { currentIndex = indexOfValue(settings.skin) }
+                    onModelChanged: sync()
+                    Component.onCompleted: sync()
+                    Connections { target: settings; function onSkinChanged() { skinPicker.sync() } }
+                    onActivated: themes.setTheme(currentValue, settings.theme)
+                }
+            }
+            Note {
+                visible: !!Theme.active
+                text: Theme.active ? Theme.active.name + (Theme.active.author ? " by " + Theme.active.author : "")
+                                     + " · v" + Theme.active.version + (Theme.active.description ? ". " + Theme.active.description : "") : ""
+            }
+            GuideCheck {
+                text: "KEEP THE SKIN AND THEME IN STEP WITH THE SUB-ETHA GUIDE WIDGET"
+                checked: themes.sync
+                onToggled: c => themes.sync = c
+            }
+            Note { text: "Shared through " + themes.stateFile + ": a change in either app restyles the other at once. Turning this on hands the widget this window's look." }
         }
 
         // ---- theme ----

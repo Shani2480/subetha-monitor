@@ -20,3 +20,4 @@ GuideMenu 1.0 GuideMenu.qml
 GuideMenuSeparator 1.0 GuideMenuSeparator.qml
 GuideSlider 1.0 GuideSlider.qml
 GuideCombo 1.0 GuideCombo.qml
+ThemeShapeContainer 1.0 ThemeShapeContainer.qml

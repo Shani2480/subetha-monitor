@@ -4,7 +4,8 @@ import "."
 
 // A card on the Guide's page: cream paper with a hard 2px charcoal shadow, or
 // CRT black with a glowing phosphor rule and amber L-shaped reticles in the
-// corners. An optional title row (title, subtitle, `header` items on the
+// corners; under a skin, its card shape, border, brackets and shadow
+// (ThemeShapeContainer). An optional title row (title, subtitle, `header` items on the
 // right) sits over the content, which stacks in a column.
 Item {
     id: card
@@ -13,7 +14,7 @@ Item {
     property string subtitle: ""
     property real padding: 16
     property bool reticles: true
-    property color borderColor: Theme.dark ? Theme.tint(0.55) : Theme.ink
+    property color borderColor: Theme.skinned ? Theme.border : Theme.dark ? Theme.tint(0.55) : Theme.ink
     default property alias content: body.data
     property alias header: headerSlot.data
     property alias spacing: body.spacing
@@ -21,8 +22,17 @@ Item {
     implicitWidth: column.implicitWidth + padding * 2 + 2
     implicitHeight: column.implicitHeight + padding * 2 + 2
 
+    ThemeShapeContainer {
+        id: shaped
+        visible: Theme.skinned
+        anchors.fill: parent
+        fillColor: Theme.card
+        strokeColor: card.borderColor
+        cornerBrackets: card.reticles && Theme.cornerBrackets
+    }
+
     Rectangle {   // flat offset shadow (light)
-        visible: Theme.flatShadow
+        visible: Theme.flatShadow && !Theme.skinned
         x: 2; y: 2
         width: surface.width; height: surface.height
         radius: surface.radius
@@ -31,14 +41,21 @@ Item {
 
     Rectangle {
         id: surface
-        anchors { fill: parent; rightMargin: 2; bottomMargin: 2 }
+        // The content's frame; under a skin only that, the shape drawn above.
+        anchors {
+            fill: parent
+            rightMargin: Theme.skinned ? Math.max(0, shaped.shadowOffsetX) : 2
+            bottomMargin: Theme.skinned ? Math.max(0, shaped.shadowOffsetY) : 2
+            leftMargin: Theme.skinned ? Math.max(0, -shaped.shadowOffsetX) : 0
+            topMargin: Theme.skinned ? Math.max(0, -shaped.shadowOffsetY) : 0
+        }
         radius: Theme.outerRadius
-        color: Theme.card
-        border.width: Theme.dark ? 1 : 2
+        color: Theme.skinned ? "transparent" : Theme.card
+        border.width: Theme.skinned ? 0 : Theme.dark ? 1 : 2
         border.color: card.borderColor
 
         Rectangle {   // phosphor glow: a soft second rule outside the first
-            visible: Theme.dark
+            visible: Theme.dark && !Theme.skinned
             anchors { fill: parent; margins: -3 }
             radius: parent.radius + 3
             color: "transparent"
@@ -47,7 +64,7 @@ Item {
         }
 
         Repeater {   // L-shaped reticles
-            model: card.reticles ? 4 : 0
+            model: card.reticles && !Theme.skinned ? 4 : 0
             Item {
                 required property int index
                 readonly property bool atRight: index % 2 === 1
@@ -85,7 +102,7 @@ Item {
                     visible: card.subtitle !== ""
                     Layout.fillWidth: true
                     text: card.subtitle
-                    color: Theme.tint(0.6)
+                    color: Theme.skinned ? Theme.inkSoft : Theme.tint(0.6)
                     elide: Text.ElideRight
                     font { family: Theme.mono; pixelSize: 11 }
                 }

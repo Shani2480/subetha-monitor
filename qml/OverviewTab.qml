@@ -21,20 +21,22 @@ Flickable {
     readonly property var battery: t.battery || {}
     readonly property int columns: width >= 1240 ? 3 : 2
 
+    // The Guide's verdict, or the active skin's line for the same level.
     readonly property string entry: {
+        var q = Theme.quips
         if ((cpu.temp || 0) >= 90 || (gpu.temp || 0) >= 95)
-            return "WARNING: TEMPERATURES APPROACHING THOSE OF A SMALL SUN. DON'T PANIC."
+            return q.critical || "WARNING: TEMPERATURES APPROACHING THOSE OF A SMALL SUN. DON'T PANIC."
         if ((cpu.usage || 0) >= 85)
-            return "INFINITE IMPROBABILITY DRIVE ENGAGED: EVERY CORE IS THINKING VERY HARD."
+            return q.highLoad || "INFINITE IMPROBABILITY DRIVE ENGAGED: EVERY CORE IS THINKING VERY HARD."
         if ((mem.percent || 0) >= 90)
-            return "MEMORY NEARLY FULL. LIKE THE GUIDE, IT HAS MANY OMISSIONS BUT IS CHEAPER."
+            return q.moderate || "MEMORY NEARLY FULL. LIKE THE GUIDE, IT HAS MANY OMISSIONS BUT IS CHEAPER."
         if ((gpu.usage || 0) >= 80)
-            return "THE GRAPHICS ENGINE IS RENDERING THE SUNSETS OF MAGRATHEA."
+            return q.moderate || "THE GRAPHICS ENGINE IS RENDERING THE SUNSETS OF MAGRATHEA."
         if (battery.present && !battery.plugged && battery.percent < 20)
             return "BATTERY LOW. PLEASE FIND A TOWEL AND A WALL SOCKET."
         if ((cpu.usage || 0) < 10)
-            return "MOSTLY HARMLESS. THE MACHINE IS CONTEMPLATING THE ANSWER."
-        return "ALL SYSTEMS NOMINAL. SHARE AND ENJOY."
+            return q.nominal || "MOSTLY HARMLESS. THE MACHINE IS CONTEMPLATING THE ANSWER."
+        return q.nominal || "ALL SYSTEMS NOMINAL. SHARE AND ENJOY."
     }
 
     function cpuFanDuty() {

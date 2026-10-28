@@ -16,8 +16,17 @@ TextField {
     font { family: Theme.mono; pixelSize: 13 }
     background: Rectangle {
         radius: Theme.pillRadius
-        color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.04) : Theme.cream
-        border.width: field.activeFocus ? 2 : (Theme.dark ? 1 : 2)
+        ThemeShapeContainer {   // a skin's pill shape
+            visible: Theme.skinned
+            anchors.fill: parent
+            role: "pill"
+            fillColor: Theme.card
+            strokeColor: field.activeFocus ? Theme.accent : Theme.border
+            cornerBrackets: false
+            shadowType: "none"
+        }
+        color: Theme.skinned ? "transparent" : Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.04) : Theme.cream
+        border.width: Theme.skinned ? 0 : field.activeFocus ? 2 : (Theme.dark ? 1 : 2)
         border.color: field.activeFocus ? Theme.accent : (Theme.dark ? Theme.tint(0.5) : Theme.charcoal)
         Text {
             x: 10

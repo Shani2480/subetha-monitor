@@ -2,12 +2,12 @@ import QtQuick
 import "."
 
 // The tube itself, over the whole window: raster scanlines every 2px at 0.08
-// and a faint vignette on the terminal; nothing on the film pages. It takes
-// no input.
+// and a faint vignette on the terminal; nothing on the film pages, and a
+// skin's own scanlines (or none) under a skin. It takes no input.
 Item {
     id: overlay
 
-    visible: Theme.dark
+    visible: Theme.scanlines
     enabled: false
 
     Image {
@@ -16,7 +16,7 @@ Item {
         sourceSize: Qt.size(4, 2)
         fillMode: Image.Tile
         smooth: false
-        opacity: 0.08
+        opacity: Theme.scanlineOpacity
     }
     Rectangle {   // a tube's darker edges
         anchors.fill: parent

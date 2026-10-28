@@ -4,7 +4,8 @@ import "."
 
 // The frameless window's own title bar: the planet, the console's name and
 // DON'T PANIC on the left, a drag strip across the middle (double-click
-// maximizes), the theme switch and the three window controls on the right.
+// maximizes), the theme picker (the Guide's own look or an installed skin),
+// the dark / light switch and the three window controls on the right.
 // The move starts once the pointer has travelled a few pixels, not on press:
 // a compositor that grabs the pointer for the move would otherwise eat the
 // second click of a double-click.
@@ -13,6 +14,9 @@ Item {
 
     required property var window
     readonly property bool maximized: window.visibility === Window.Maximized
+    property var themeChoices: []        // [{ value, label }]
+    property string currentTheme: ""
+    signal themePicked(string id)
     signal toggleTheme()
     signal minimizeRequested()
     signal closeRequested()
@@ -55,11 +59,34 @@ Item {
             font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 1.4 }
         }
         DontPanicPill { pixelSize: 9 }
+        Image {   // a skin's logo, beside the name
+            visible: source != ""
+            Layout.preferredHeight: 18
+            Layout.preferredWidth: 18 * (implicitWidth / Math.max(1, implicitHeight))
+            source: Theme.frame && Theme.frame.logo ? Theme.frame.logo : ""
+            sourceSize.height: 36
+            fillMode: Image.PreserveAspectFit
+        }
 
         Item { Layout.fillWidth: true }   // the drag strip shows through here
 
+        GuideCombo {
+            id: picker
+            implicitWidth: 230
+            implicitHeight: 26
+            font.pixelSize: 10
+            textRole: "label"
+            valueRole: "value"
+            model: bar.themeChoices
+            function sync() { currentIndex = indexOfValue(bar.currentTheme) }
+            onModelChanged: sync()
+            Component.onCompleted: sync()
+            Connections { target: bar; function onCurrentThemeChanged() { picker.sync() } }
+            onActivated: bar.themePicked(currentValue)
+        }
         GuideButton {
-            text: Theme.dark ? "CRT / light" : "crt / LIGHT"
+            text: Theme.dark ? "DARK / light" : "dark / LIGHT"
+            enabled: !Theme.skin || !!Theme.skin.variants || Theme.skin.isDark === null
             pixelSize: 10
             tone: Theme.dark ? Theme.amber : Theme.coral
             onClicked: bar.toggleTheme()
@@ -88,7 +115,7 @@ Item {
             anchors.fill: parent
             visible: wb.hot
             // Close floods red; the others glow faintly.
-            color: wb.danger ? (Theme.dark ? "#FF3333" : "#FF4A4A")
+            color: wb.danger ? (Theme.skinned ? Theme.red : Theme.dark ? "#FF3333" : "#FF4A4A")
                  : Theme.dark ? Theme.withAlpha(Theme.phosphor, area.pressed ? 0.28 : 0.16)
                  : Theme.withAlpha(Theme.mustard, area.pressed ? 0.75 : 0.5)
         }

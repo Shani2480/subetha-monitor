@@ -8,11 +8,14 @@ import "components"
 // switch, window controls), the navigation as a left rail or a top strip, a
 // masthead (host profile, a rotating entry from the Guide, the feed LED), the
 // seven tabs and a status line, inside a rounded frame with the CRT tube laid
-// over it in the dark theme. Grips along the edges resize it.
+// over it in the dark theme. Grips along the edges resize it. A community
+// skin (Theme.skin) reshapes the frame, cards, pills and buttons, and the
+// title bar picks it; the skin and light / dark follow the Sub-Etha Guide
+// widget's while themes.sync is on (backend/theme_service.py).
 //
 // Closing hides to the system tray while settings.closeToTray is on and a
 // tray exists; otherwise it quits. Context properties from main.py:
-// settings, telemetry, processes, services, hwinfo, tray.
+// settings, themes, telemetry, processes, services, hwinfo, tray.
 ApplicationWindow {
     id: win
 
@@ -36,19 +39,24 @@ ApplicationWindow {
     // one slides away and the other slides in.
     property real navLeft: leftNav ? 1 : 0
     Behavior on navLeft { NumberAnimation { duration: Theme.animMs + 140; easing.type: Easing.InOutCubic } }
-    readonly property real frameRadius: maximized ? 0 : 12
+    // The window's outline: the Guide's rounded frame, or the skin's card shape.
+    readonly property string frameShape: maximized ? "sharp" : Theme.skinned ? Theme.cardShape : "rounded"
+    readonly property real frameRadius: maximized ? 0 : !Theme.skinned ? 12
+                                      : frameShape === "rounded" ? Math.min(Theme.cornerRadius, 16) : frameShape === "stadium" ? 16 : 0
     property bool wasMaximized: false
 
-    // The theme changes under a snapshot of the old look, which then fades out.
+    // The theme (light / dark, and the skin) changes under a snapshot of the
+    // old look, which then fades out.
     function applyTheme() {
-        if (Theme.dark === settings.dark) return
-        if (!visible || visibility === Window.Minimized) { Theme.dark = settings.dark; return }
+        if (Theme.wantDark === settings.dark && Theme.activeId === settings.skin) return
+        function apply() { Theme.wantDark = settings.dark; Theme.activeId = settings.skin }
+        if (!visible || visibility === Window.Minimized) { apply(); return }
         frame.grabToImage(function (shot) {
             themeSnap.width = frame.width
             themeSnap.height = frame.height
             themeSnap.source = shot.url
             themeFade.restart()
-            Theme.dark = settings.dark
+            apply()
         })
     }
 
@@ -92,8 +100,11 @@ ApplicationWindow {
     color: "transparent"                 // the frame paints the page, round-cornered
     font.family: Theme.sans
 
+    Binding { target: Theme; property: "installed"; value: themes.installed }
+
     Component.onCompleted: {
-        Theme.dark = settings.dark
+        Theme.wantDark = settings.dark
+        Theme.activeId = settings.skin
         width = Math.max(minimumWidth, settings.width)
         height = Math.max(minimumHeight, settings.height)
         showTab(settings.startTab)
@@ -121,6 +132,7 @@ ApplicationWindow {
             win.restore()
         }
         function onDarkChanged() { win.applyTheme() }
+        function onSkinChanged() { win.applyTheme() }
     }
     Connections {
         target: tray
@@ -155,17 +167,22 @@ ApplicationWindow {
         anchors.rightMargin: Theme.flatShadow && !win.maximized ? 3 : 0
         anchors.bottomMargin: anchors.rightMargin
 
-        Rectangle {   // flat offset shadow (light)
+        ThemeShapeContainer {   // flat offset shadow (light)
             visible: Theme.flatShadow && !win.maximized
             x: 3; y: 3; width: parent.width; height: parent.height
-            radius: win.frameRadius
-            color: Theme.charcoal
+            fillColor: Theme.skinned ? Theme.shadow : Theme.charcoal
+            strokeWidth: 0
+            shapeType: win.frameShape; cornerRadius: win.frameRadius
+            borderStyle: "solid"; shadowType: "none"; cornerBrackets: false
         }
 
-        Rectangle {
+        ThemeShapeContainer {
             id: frameMask
             anchors.fill: parent
-            radius: win.frameRadius
+            fillColor: "white"
+            strokeWidth: 0
+            shapeType: win.frameShape; cornerRadius: win.frameRadius
+            borderStyle: "solid"; shadowType: "none"; cornerBrackets: false
             visible: false
             layer.enabled: true
         }
@@ -175,7 +192,7 @@ ApplicationWindow {
         Item {
             id: surface
             anchors.fill: parent
-            layer.enabled: win.frameRadius > 0 && GraphicsInfo.api !== GraphicsInfo.Software
+            layer.enabled: (win.frameRadius > 0 || win.frameShape === "chamfer") && GraphicsInfo.api !== GraphicsInfo.Software
             layer.effect: MultiEffect {
                 maskEnabled: true
                 maskSource: frameMask
@@ -189,6 +206,7 @@ ApplicationWindow {
             // terminal, charcoal hairlines on the cream page.
             Image {
                 anchors.fill: parent
+                visible: Theme.grid
                 source: Theme.dark ? "components/grid-dark.svg" : "components/grid-light.svg"
                 sourceSize: Qt.size(24, 24)
                 fillMode: Image.Tile
@@ -203,14 +221,17 @@ ApplicationWindow {
                 SubEthaTitleBar {
                     Layout.fillWidth: true
                     window: win
+                    themeChoices: Theme.choices
+                    currentTheme: settings.skin
+                    onThemePicked: id => themes.setTheme(id, settings.theme)
                     onToggleTheme: win.toggleTheme()
                     onMinimizeRequested: win.minimize()
                     onCloseRequested: win.close()
                 }
                 Rectangle {   // the rule under the title bar
                     Layout.fillWidth: true
-                    implicitHeight: Theme.dark ? 1 : 2
-                    color: Theme.dark ? Theme.tint(0.45) : Theme.charcoal
+                    implicitHeight: Theme.skinned ? Math.max(1, Theme.borderWidth) : Theme.dark ? 1 : 2
+                    color: Theme.skinned ? Theme.border : Theme.dark ? Theme.tint(0.45) : Theme.charcoal
                 }
 
                 RowLayout {
@@ -261,22 +282,25 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 spacing: 2
                                 Text {
-                                    text: "THE SUB-ETHA SYSTEM MONITOR"
+                                    text: Theme.frame && Theme.frame.watermark ? "THE SUB-ETHA SYSTEM MONITOR  " + Theme.frame.watermark
+                                                                                : "THE SUB-ETHA SYSTEM MONITOR"
                                     color: Theme.ink
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
                                     font { family: Theme.sans; pixelSize: 24; weight: Font.Black; letterSpacing: Theme.dark ? 3 : 1.5 }
                                 }
                                 Text {
                                     Layout.fillWidth: true
                                     text: [win.specs.host, win.specs.os, "LINUX " + win.specs.kernel,
                                            "UP " + Theme.duration(win.t.uptime || 0)].join("  ·  ").toUpperCase()
-                                    color: Theme.tint(0.65)
+                                    color: Theme.skinned ? Theme.inkSoft : Theme.tint(0.65)
                                     elide: Text.ElideRight
                                     font { family: Theme.mono; pixelSize: 11; letterSpacing: 0.6 }
                                 }
                                 Text {
                                     id: quip
                                     Layout.fillWidth: true
-                                    color: Theme.accent
+                                    color: Theme.commentary
                                     elide: Text.ElideRight
                                     font { family: Theme.mono; pixelSize: 11; italic: !Theme.dark }
                                     readonly property var lines: [
@@ -292,8 +316,12 @@ ApplicationWindow {
                                         "The fans are spinning in exactly the way that bricks don't.",
                                         "Share and enjoy. Then check the swap."
                                     ]
+                                    // A skin's own lines, after dark its night one among them.
+                                    readonly property var skinLines: ["nominal", "moderate", "night"]
+                                        .filter(k => Theme.quips[k] && (k !== "night" || Theme.dark)).map(k => Theme.quips[k])
+                                    readonly property var shown: skinLines.length ? skinLines : lines
                                     property int index: Math.floor(Math.random() * lines.length)
-                                    text: "> " + lines[index]
+                                    text: "> " + shown[index % shown.length]
                                     Timer { interval: 14000; repeat: true; running: true
                                             onTriggered: quip.index = (quip.index + 1) % quip.lines.length }
                                 }
@@ -344,12 +372,21 @@ ApplicationWindow {
                                     height: tabRow.height
                                     Behavior on x { NumberAnimation { duration: Theme.animMs + 60; easing.type: Easing.OutCubic } }
                                     Behavior on width { NumberAnimation { duration: Theme.animMs + 60; easing.type: Easing.OutCubic } }
+                                    ThemeShapeContainer {
+                                        visible: Theme.skinned
+                                        anchors.fill: parent
+                                        role: "pill"
+                                        fillColor: Theme.withAlpha(Theme.accent, Theme.dark ? 0.22 : 0.35)
+                                        strokeColor: Theme.accent
+                                    }
                                     Rectangle {   // flat offset shadow
+                                        visible: !Theme.skinned
                                         x: 2; y: 2; width: parent.width - 2; height: parent.height - 2
                                         radius: Theme.pillRadius
                                         color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.22) : Theme.charcoal
                                     }
                                     Rectangle {
+                                        visible: !Theme.skinned
                                         width: parent.width - 2; height: parent.height - 2
                                         radius: Theme.pillRadius
                                         color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.14) : Theme.coral
@@ -436,7 +473,7 @@ ApplicationWindow {
                             Rectangle { height: 1; Layout.fillWidth: true; Layout.maximumWidth: 18; color: Theme.tint(0.4) }
                             Text {
                                 Layout.fillWidth: true
-                                text: win.status || "ALL SYSTEMS MOSTLY HARMLESS. CTRL+1-7 TABS, CTRL+T THEME."
+                                text: win.status || (Theme.quips.nominal || "ALL SYSTEMS MOSTLY HARMLESS.") + " CTRL+1-7 TABS, CTRL+T THEME."
                                 color: win.status ? (win.statusOk ? Theme.cool : Theme.alert) : Theme.tint(0.5)
                                 elide: Text.ElideRight
                                 font { family: Theme.mono; pixelSize: 11; bold: win.status !== "" }
@@ -458,9 +495,17 @@ ApplicationWindow {
         }
 
         // ---- the outline: a phosphor rule with a soft inner glow, or a charcoal one ----
+        ThemeShapeContainer {   // ...or the skin's border, in its card shape
+            anchors.fill: parent
+            visible: Theme.skinned && !win.maximized
+            shapeType: win.frameShape; cornerRadius: win.frameRadius
+            shadowType: "none"
+            cornerBrackets: Theme.cornerBrackets
+            bracketSize: 14; bracketInset: 5
+        }
         Rectangle {
             anchors.fill: parent
-            visible: !win.maximized
+            visible: !Theme.skinned && !win.maximized
             radius: win.frameRadius
             color: "transparent"
             border { width: Theme.dark ? 1 : 2; color: Theme.dark ? Theme.phosphor : Theme.charcoal }
@@ -473,7 +518,7 @@ ApplicationWindow {
             }
         }
         Repeater {   // CRT corner brackets
-            model: Theme.dark && !win.maximized ? 4 : 0
+            model: Theme.dark && !Theme.skinned && !win.maximized ? 4 : 0
             Item {
                 required property int index
                 readonly property bool atRight: index % 2 === 1

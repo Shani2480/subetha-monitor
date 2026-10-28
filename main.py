@@ -9,7 +9,8 @@ window over a local socket, raises it and exits, so the widget's diagnostic
 buttons can aim the open monitor at a tab. While a system tray exists,
 closing the window (by default) hides it to the tray instead of quitting.
 The preferences (theme, tray behaviour, layout, process columns, window
-size) persist in ~/.config/subetha-monitor.json.
+size) persist in ~/.config/subetha-monitor.json; the skin and theme are also
+kept in step with the Sub-Etha Guide widget (backend/theme_service.py).
 """
 
 import argparse
@@ -34,6 +35,7 @@ from backend.hwinfo_engine import HwInfoEngine  # noqa: E402
 from backend.process_manager import ProcessManager  # noqa: E402
 from backend.systemd_manager import SystemdManager  # noqa: E402
 from backend.telemetry import Telemetry  # noqa: E402
+from backend.theme_service import BUILTIN as BUILTIN_SKIN, ThemeService, valid_id  # noqa: E402
 from backend.tray import METRICS as TRAY_METRICS, Tray  # noqa: E402
 
 APP_ID = "subetha-monitor"
@@ -44,7 +46,7 @@ INTERVAL_RANGE = (500, 5000)            # telemetry period, ms
 CONFIG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), APP_ID + ".json")
 SOCKET = f"{APP_ID}-{os.getuid()}"
 DEFAULTS = {
-    "theme": "dark", "tab": "overview", "width": 1280, "height": 860,
+    "theme": "dark", "skin": BUILTIN_SKIN, "tab": "overview", "width": 1280, "height": 860,
     "closeToTray": True, "minimizeToTray": False, "startMinimized": False, "trayTooltip": True,
     "trayMetric": "planet", "trayStyle": "number",
     "tabPosition": "left", "sidebarCollapsed": False, "interval": 1500, "startupTab": "last",
@@ -57,6 +59,7 @@ class Settings(QObject):
     """The persisted preferences, written back on every change."""
 
     themeChanged = Signal()
+    skinChanged = Signal()
     darkChanged = Signal()
     tabChanged = Signal()
     closeToTrayChanged = Signal()
@@ -129,6 +132,9 @@ class Settings(QObject):
 
     theme = Property(str, lambda self: self._cfg["theme"] if self._cfg["theme"] in THEMES else "dark",
                      _setter("theme", "themeChanged", lambda v: v in THEMES), notify=themeChanged)
+    # A community skin's id, or "h2g2" for the Guide's own palette.
+    skin = Property(str, lambda self: self._cfg["skin"] if valid_id(self._cfg["skin"]) else BUILTIN_SKIN,
+                    _setter("skin", "skinChanged", valid_id), notify=skinChanged)
     tab = Property(str, lambda self: self._cfg["tab"] if self._cfg["tab"] in TABS else "overview",
                    _setter("tab", "tabChanged", lambda v: v in TABS), notify=tabChanged)
     closeToTray = Property(bool, lambda self: bool(self._cfg["closeToTray"]),
@@ -174,6 +180,7 @@ class Settings(QObject):
                                   _setter("sensorColumnWidths", "sensorColumnWidthsChanged"),
                                   notify=sensorColumnWidthsChanged)
     # The theme in force: `theme`, with "auto" resolved by the clock.
+
     dark = Property(bool, lambda self: self._dark, notify=darkChanged)
     startTab = Property(str, lambda self: self._start_tab, constant=True)
     # The size is read once at start-up and written back on close.
@@ -247,8 +254,9 @@ def build(argv):
         return app, None, None
 
     settings = Settings(args.tab, app)
+    themes = ThemeService(settings, app)       # takes up the shared theme...
     if args.theme:
-        settings.setProperty("theme", args.theme)
+        settings.setProperty("theme", args.theme)   # ...which a --theme then overrides, and shares
     telemetry = Telemetry(app)
     processes = ProcessManager(app)
     services = SystemdManager(app)
@@ -278,10 +286,11 @@ def build(argv):
     ctx.setContextProperty("services", services)
     ctx.setContextProperty("hwinfo", hwinfo)
     ctx.setContextProperty("tray", tray)
+    ctx.setContextProperty("themes", themes)
     engine.load(QUrl.fromLocalFile(os.path.join(HERE, "qml", "MainAppWindow.qml")))
     if not engine.rootObjects():
         sys.exit(1)
-    return app, engine, (settings, telemetry, processes, services, hwinfo, tray)
+    return app, engine, (settings, themes, telemetry, processes, services, hwinfo, tray)
 
 
 def main():

@@ -29,13 +29,22 @@ ComboBox {
         font { family: Theme.mono; pixelSize: 13; bold: true }
     }
     background: Item {
+        ThemeShapeContainer {   // a skin's pill shape
+            visible: Theme.skinned
+            anchors.fill: parent
+            role: "pill"
+            fillColor: combo.hovered ? Theme.cardHover : Theme.card
+            strokeColor: combo.visualFocus || combo.popup.visible ? Theme.accent : Theme.border
+            cornerBrackets: false
+        }
         Rectangle {   // flat shadow (light)
-            visible: Theme.flatShadow
+            visible: Theme.flatShadow && !Theme.skinned
             x: 2; y: 2; width: parent.width - 2; height: parent.height - 2
             radius: Theme.pillRadius
             color: Theme.charcoal
         }
         Rectangle {
+            visible: !Theme.skinned
             width: parent.width - 2; height: parent.height - 2
             radius: Theme.pillRadius
             color: Theme.dark ? (combo.hovered ? Theme.tint(0.08) : "transparent") : Theme.cream
@@ -51,13 +60,13 @@ ComboBox {
         highlighted: combo.highlightedIndex === index
         contentItem: Text {
             text: entry.model[combo.textRole]
-            color: entry.highlighted ? (Theme.dark ? Theme.bg : Theme.charcoal) : Theme.ink
+            color: entry.highlighted ? (Theme.dark || Theme.skinned ? Theme.bg : Theme.charcoal) : Theme.ink
             verticalAlignment: Text.AlignVCenter
             font: combo.font
         }
         background: Rectangle {
             radius: Theme.pillRadius
-            color: entry.highlighted ? (Theme.dark ? Theme.phosphor : Theme.mustard) : "transparent"
+            color: entry.highlighted ? (Theme.skinned ? Theme.accent : Theme.dark ? Theme.phosphor : Theme.mustard) : "transparent"
         }
     }
     popup: Popup {
@@ -72,9 +81,10 @@ ComboBox {
             currentIndex: combo.highlightedIndex
         }
         background: Rectangle {
-            radius: Theme.dark ? 3 : 10
-            color: Theme.dark ? Theme.crtCard : Theme.cream
-            border { width: Theme.dark ? 1 : 2; color: Theme.dark ? Theme.phosphor : Theme.charcoal }
+            radius: Theme.skinned ? Theme.pillRadius : Theme.dark ? 3 : 10
+            color: Theme.skinned ? Theme.card : Theme.dark ? Theme.crtCard : Theme.cream
+            border { width: Theme.skinned ? Math.max(1, Theme.borderWidth) : Theme.dark ? 1 : 2
+                     color: Theme.skinned ? Theme.border : Theme.dark ? Theme.phosphor : Theme.charcoal }
         }
     }
 }
