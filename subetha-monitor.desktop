@@ -1,0 +1,31 @@
+[Desktop Entry]
+Type=Application
+Name=Sub-Etha System Monitor
+GenericName=System Monitor
+Comment=Processes, systemd units, sensors, network and storage, in the style of the Hitchhiker's Guide. Don't Panic.
+Exec=subetha-monitor
+TryExec=subetha-monitor
+Icon=subetha-monitor
+Terminal=false
+Categories=System;Monitor;Qt;
+Keywords=process;task;manager;monitor;systemd;service;sensor;fan;cpu;gpu;network;disk;h2g2;
+StartupNotify=true
+StartupWMClass=subetha-monitor
+SingleMainWindow=true
+Actions=processes;services;network;disks;
+
+[Desktop Action processes]
+Name=Processes
+Exec=subetha-monitor --tab=processes
+
+[Desktop Action services]
+Name=Systemd Units
+Exec=subetha-monitor --tab=services
+
+[Desktop Action network]
+Name=Network
+Exec=subetha-monitor --tab=network
+
+[Desktop Action disks]
+Name=Storage
+Exec=subetha-monitor --tab=disks

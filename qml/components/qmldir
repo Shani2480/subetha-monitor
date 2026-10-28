@@ -1,0 +1,16 @@
+singleton Theme 1.0 Theme.qml
+ArcGauge 1.0 ArcGauge.qml
+ConfirmDialog 1.0 ConfirmDialog.qml
+CopyableValue 1.0 CopyableValue.qml
+CrtOverlay 1.0 CrtOverlay.qml
+DontPanicPill 1.0 DontPanicPill.qml
+DualMetricBar 1.0 DualMetricBar.qml
+DynamicFanBlade 1.0 DynamicFanBlade.qml
+GuideButton 1.0 GuideButton.qml
+GuideCard 1.0 GuideCard.qml
+GuideCheck 1.0 GuideCheck.qml
+GuideField 1.0 GuideField.qml
+ReadoutLabel 1.0 ReadoutLabel.qml
+SegmentBar 1.0 SegmentBar.qml
+SparklineGraph 1.0 SparklineGraph.qml
+GuideScrollBar 1.0 GuideScrollBar.qml
