@@ -1,7 +1,7 @@
 # Sub-Etha System Monitor
 
 A standalone desktop system monitor in the two looks of
-[The Sub-Etha Guide](../subetha-guide), the KDE Plasma widget it pairs with:
+[The Sub-Etha Guide](https://github.com/Shani2480/subetha-guide), the KDE Plasma widget it pairs with:
 the 1981 BBC terminal's phosphor green on CRT black (with scanlines and amber
 reticles), and the 2005 film's cream Encyclopedia pages (with hard flat
 shadows). One button in the title bar switches between them (`Ctrl+T`);
