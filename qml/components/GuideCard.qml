@@ -6,7 +6,9 @@ import "."
 // CRT black with a glowing phosphor rule and amber L-shaped reticles in the
 // corners; under a skin, its card shape, border, brackets and shadow
 // (ThemeShapeContainer). An optional title row (title, subtitle, `header` items on the
-// right) sits over the content, which stacks in a column.
+// right) sits over the content, which stacks in a column. A card that
+// tracks alerts (`alertTracked`) shows a SeverityBadge before its title, and
+// at a warning or critical `alertLevel` an AlertGlowContainer haloes it.
 Item {
     id: card
 
@@ -14,6 +16,10 @@ Item {
     property string subtitle: ""
     property real padding: 16
     property bool reticles: true
+    property bool alertTracked: false     // show the severity badge, a dot while nominal
+    property int alertLevel: 0            // 0 nominal, 1 warning, 2 critical
+    property string alertFigure: ""       // the reading in [CRITICAL: ...]
+    property bool live: true              // on screen: gates the halo's breathing and the badge's blink
     property color borderColor: Theme.skinned ? Theme.border : Theme.dark ? Theme.tint(0.55) : Theme.ink
     default property alias content: body.data
     property alias header: headerSlot.data
@@ -21,6 +27,12 @@ Item {
 
     implicitWidth: column.implicitWidth + padding * 2 + 2
     implicitHeight: column.implicitHeight + padding * 2 + 2
+
+    AlertGlowContainer {
+        anchors.fill: parent
+        alertLevel: card.alertLevel
+        animate: Alerts.motion && card.live
+    }
 
     ThemeShapeContainer {
         id: shaped
@@ -91,12 +103,23 @@ Item {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 1
-                Text {
+                RowLayout {
                     Layout.fillWidth: true
-                    text: card.title
-                    color: Theme.ink
-                    elide: Text.ElideRight
-                    font { family: Theme.sans; pixelSize: 14; bold: true; letterSpacing: 1.2 }
+                    spacing: 8
+                    SeverityBadge {
+                        visible: card.alertTracked
+                        Layout.alignment: Qt.AlignVCenter
+                        level: card.alertLevel
+                        figure: card.alertFigure
+                        live: card.live
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: card.title
+                        color: Theme.ink
+                        elide: Text.ElideRight
+                        font { family: Theme.sans; pixelSize: 14; bold: true; letterSpacing: 1.2 }
+                    }
                 }
                 Text {
                     visible: card.subtitle !== ""

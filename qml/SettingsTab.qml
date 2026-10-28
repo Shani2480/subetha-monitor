@@ -78,6 +78,54 @@ Flickable {
         }
     }
 
+    // One alert threshold: caption, slider, figure; saved on release.
+    component ThresholdRow: RowLayout {
+        id: row
+        property string label: ""
+        property string key: ""
+        property string unit: "°C"
+        property int from: 40
+        property int to: 110
+        spacing: 12
+        enabled: settings.alertsEnabled
+        opacity: enabled ? 1 : 0.5
+        Label { text: row.label; Layout.preferredWidth: 220 }
+        GuideSlider {
+            id: slider
+            Layout.preferredWidth: 320
+            from: row.from; to: row.to; stepSize: 1
+            snapMode: Slider.SnapAlways
+            value: settings[row.key]
+            onPressedChanged: if (!pressed) settings[row.key] = Math.round(value)
+        }
+        Label { text: Math.round(slider.value) + " " + row.unit; color: Theme.accent; Layout.preferredWidth: 60 }
+    }
+
+    component ThemeCard: Item {
+        id: tc
+        property string key
+        property string title
+        property string blurb
+        readonly property bool selected: settings.theme === key
+        default property alias preview: frameSlot.data
+        implicitWidth: 250
+        implicitHeight: col.implicitHeight + 24
+
+        Rectangle {   // flat shadow (light)
+            visible: Theme.flatShadow
+            x: 2; y: 2; width: parent.width - 2; height: parent.height - 2
+            radius: Theme.outerRadius
+            color: Theme.charcoal
+        }
+        Rectangle {
+            width: parent.width - 2; height: parent.height - 2
+            radius: Theme.outerRadius
+            // Opaque on the film pages, or the shadow would show through.
+            color: Theme.dark ? (tc.selected ? Theme.withAlpha(Theme.phosphor, 0.08) : area.containsMouse ? Theme.tint(0.05) : Theme.card)
+                 : tc.selected ? Qt.tint(Theme.cream, Theme.withAlpha(Theme.mustard, 0.45))
+                 : Qt.tint(Theme.card, area.containsMouse ? Theme.tint(0.05) : "transparent")
+            border { width: tc.selected ? 2 : (Theme.dark ? 1 : 2); color: tc.selected ? Theme.accent : Theme.dark ? Theme.tint(0.4) : Theme.charcoal }
+        }
         ColumnLayout {
             id: col
             x: 12; y: 12
@@ -230,6 +278,33 @@ Flickable {
                     onActivated: settings.startupTab = currentValue
                 }
             }
+        }
+
+        // ---- alerts ----
+        GuideCard {
+            Layout.fillWidth: true
+            title: "ALERTS"
+            subtitle: "Amber at a warning, crimson when critical; the same thresholds as the Sub-Etha Guide widget's defaults."
+            GuideCheck {
+                text: "COLOUR READINGS AT THE THRESHOLDS"
+                checked: settings.alertsEnabled
+                onToggled: c => settings.alertsEnabled = c
+            }
+            GuideCheck {
+                enabled: settings.alertsEnabled
+                text: "ANIMATE THEM: BREATHING GLOW, BLINKING BADGES, STROBING BARS"
+                checked: settings.enablePulsingAnimations
+                onToggled: c => settings.enablePulsingAnimations = c
+            }
+            ThresholdRow { label: "CPU TEMP WARNING"; key: "cpuTempWarnThreshold" }
+            ThresholdRow { label: "CPU TEMP CRITICAL"; key: "cpuTempCritThreshold" }
+            ThresholdRow { label: "GPU TEMP WARNING"; key: "gpuTempWarnThreshold" }
+            ThresholdRow { label: "GPU TEMP CRITICAL"; key: "gpuTempCritThreshold" }
+            ThresholdRow { label: "CPU LOAD CRITICAL"; key: "cpuLoadCritThreshold"; unit: "%"; from: 50; to: 100 }
+            ThresholdRow { label: "GPU LOAD CRITICAL"; key: "gpuLoadCritThreshold"; unit: "%"; from: 50; to: 100 }
+            ThresholdRow { label: "MEMORY CRITICAL"; key: "ramLoadCritThreshold"; unit: "%"; from: 50; to: 100 }
+            ThresholdRow { label: "DISK FULL CRITICAL"; key: "diskCritThreshold"; unit: "%"; from: 50; to: 100 }
+            Note { text: "A warning shows [WARN] on the card and colours its figure amber. A critical reading blinks [CRITICAL], haloes its card and strobes or pulses its bar. A warning above its critical level is never reached: keep warning below critical." }
         }
 
         // ---- skin ----

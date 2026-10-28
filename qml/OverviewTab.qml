@@ -21,10 +21,27 @@ Flickable {
     readonly property var battery: t.battery || {}
     readonly property int columns: width >= 1240 ? 3 : 2
 
+    // A critical figure on the CRT terminal or a glitch skin jumps a pixel now and then.
+    property real jitterY: 0
+    SequentialAnimation on jitterY {
+        running: tab.shown && Alerts.motion && Theme.alertJitter
+                 && (Alerts.cpuLoad === 2 || Alerts.gpuLoad === 2 || Alerts.ram === 2)
+        loops: Animation.Infinite
+        onRunningChanged: if (!running) tab.jitterY = 0
+        PauseAnimation { duration: 1100 }
+        PropertyAction { value: -1 }
+        PauseAnimation { duration: 70 }
+        PropertyAction { value: 0 }
+        PauseAnimation { duration: 260 }
+        PropertyAction { value: -1 }
+        PauseAnimation { duration: 50 }
+        PropertyAction { value: 0 }
+    }
+
     // The Guide's verdict, or the active skin's line for the same level.
     readonly property string entry: {
         var q = Theme.quips
-        if ((cpu.temp || 0) >= 90 || (gpu.temp || 0) >= 95)
+        if (Alerts.cpuTemp === 2 || Alerts.gpuTemp === 2)
             return q.critical || "WARNING: TEMPERATURES APPROACHING THOSE OF A SMALL SUN. DON'T PANIC."
         if ((cpu.usage || 0) >= 85)
             return q.highLoad || "INFINITE IMPROBABILITY DRIVE ENGAGED: EVERY CORE IS THINKING VERY HARD."
@@ -95,6 +112,10 @@ Flickable {
             Layout.preferredWidth: 1
             title: "CPU  //  PROCESSING CORE"
             subtitle: tab.specs.cpuModel || ""
+            alertTracked: true
+            alertLevel: Alerts.cpuLevel
+            alertFigure: Alerts.cpuText
+            live: tab.shown
             header: [ DynamicFanBlade { width: 28; height: 28; duty: tab.cpuFanDuty(); strokeColor: Theme.ink } ]
 
             RowLayout {
@@ -102,10 +123,11 @@ Flickable {
                 spacing: 16
                 Text {
                     text: Theme.pct(tab.cpu.usage)
-                    color: Theme.load(tab.cpu.usage || 0)
+                    color: Theme.levelInk(Alerts.cpuLoad, Theme.load(tab.cpu.usage || 0))
                     font { family: Theme.mono; pixelSize: 40; bold: true }
+                    transform: Translate { y: Alerts.cpuLoad === 2 ? tab.jitterY : 0 }
                 }
-                ReadoutLabel { Layout.fillWidth: true; label: "TEMP"; value: Theme.temp(tab.cpu.temp); valueColor: Theme.heat(tab.cpu.temp || 0) }
+                ReadoutLabel { Layout.fillWidth: true; label: "TEMP"; value: Theme.temp(tab.cpu.temp); valueColor: Theme.levelInk(Alerts.cpuTemp, Theme.heat(tab.cpu.temp || 0)) }
                 ReadoutLabel { Layout.fillWidth: true; label: "CLOCK"; value: Theme.ghz(tab.cpu.freq) }
                 ReadoutLabel { Layout.fillWidth: true; label: "LOAD AVG"; value: (tab.cpu.load || [0]).map(v => v.toFixed(2)).join(" ") }
             }
@@ -113,6 +135,8 @@ Flickable {
                 Layout.fillWidth: true
                 usageFraction: (tab.cpu.usage || 0) / 100
                 tempValue: tab.cpu.temp || 0
+                tempLevel: Alerts.cpuTemp
+                loadLevel: Alerts.cpuLoad
                 live: tab.shown
                 segmentHeight: 12
                 segments: 30
@@ -168,6 +192,10 @@ Flickable {
             Layout.preferredWidth: 1
             title: "GPU  //  GRAPHICS ENGINE"
             subtitle: tab.gpu.name || "NO GRAPHICS ENGINE DETECTED"
+            alertTracked: !!tab.gpu.name
+            alertLevel: Alerts.gpuLevel
+            alertFigure: Alerts.gpuText
+            live: tab.shown
             header: [ DynamicFanBlade { width: 28; height: 28; duty: tab.gpuFanDuty(); strokeColor: Theme.ink } ]
 
             RowLayout {
@@ -175,10 +203,11 @@ Flickable {
                 spacing: 16
                 Text {
                     text: Theme.pct(tab.gpu.usage)
-                    color: Theme.load(tab.gpu.usage || 0)
+                    color: Theme.levelInk(Alerts.gpuLoad, Theme.load(tab.gpu.usage || 0))
                     font { family: Theme.mono; pixelSize: 40; bold: true }
+                    transform: Translate { y: Alerts.gpuLoad === 2 ? tab.jitterY : 0 }
                 }
-                ReadoutLabel { Layout.fillWidth: true; label: "EDGE"; value: Theme.temp(tab.gpu.temp); valueColor: Theme.heat(tab.gpu.temp || 0) }
+                ReadoutLabel { Layout.fillWidth: true; label: "EDGE"; value: Theme.temp(tab.gpu.temp); valueColor: Theme.levelInk(Alerts.gpuTemp, Theme.heat(tab.gpu.temp || 0)) }
                 ReadoutLabel { Layout.fillWidth: true; label: "JUNCTION"; value: Theme.temp(tab.gpu.junction); valueColor: Theme.heat((tab.gpu.junction || 0) - 10) }
                 ReadoutLabel { Layout.fillWidth: true; label: "POWER"; value: tab.gpu.power > 0 ? tab.gpu.power.toFixed(1) + " W" : "--" }
             }
@@ -186,6 +215,8 @@ Flickable {
                 Layout.fillWidth: true
                 usageFraction: (tab.gpu.usage || 0) / 100
                 tempValue: tab.gpu.temp || 0
+                tempLevel: Alerts.gpuTemp
+                loadLevel: Alerts.gpuLoad
                 live: tab.shown
                 segmentHeight: 12
                 segments: 30
@@ -232,14 +263,19 @@ Flickable {
             Layout.preferredWidth: 1
             title: "MEMORY  //  CORE STORE"
             subtitle: Theme.bytes(tab.mem.used, 1) + " OF " + Theme.bytes(tab.mem.total, 0) + " IN USE"
+            alertTracked: true
+            alertLevel: Alerts.ram
+            alertFigure: Alerts.ramText
+            live: tab.shown
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 16
                 Text {
                     text: Theme.pct(tab.mem.percent)
-                    color: Theme.load(tab.mem.percent || 0)
+                    color: Theme.levelInk(Alerts.ram, Theme.load(tab.mem.percent || 0))
                     font { family: Theme.mono; pixelSize: 40; bold: true }
+                    transform: Translate { y: Alerts.ram === 2 ? tab.jitterY : 0 }
                 }
                 ReadoutLabel { Layout.fillWidth: true; label: "AVAILABLE"; value: Theme.bytes(tab.mem.available, 1) }
                 ReadoutLabel { Layout.fillWidth: true; label: "CACHED"; value: Theme.bytes(tab.mem.cached, 1) }
@@ -386,12 +422,16 @@ Flickable {
             Layout.preferredWidth: 1
             title: "DATA BANKS"
             subtitle: "READ " + Theme.rate(tab.t.diskRead) + "  ·  WRITE " + Theme.rate(tab.t.diskWrite)
+            alertTracked: true
+            alertLevel: Alerts.disks
+            live: tab.shown
 
             Repeater {
                 model: (tab.t.disks || []).slice(0, 5)
                 ColumnLayout {
                     id: diskRow
                     required property var modelData
+                    readonly property bool critical: Alerts.loadLevel("disk", modelData.percent) === 2
                     Layout.fillWidth: true
                     spacing: 3
                     RowLayout {
@@ -399,7 +439,7 @@ Flickable {
                         Text {
                             Layout.fillWidth: true
                             text: diskRow.modelData.mount + "  [" + diskRow.modelData.fstype + "]"
-                            color: Theme.ink
+                            color: diskRow.critical ? Theme.critColor : Theme.ink
                             elide: Text.ElideMiddle
                             font { family: Theme.mono; pixelSize: 11; bold: true }
                         }
@@ -413,6 +453,7 @@ Flickable {
                         Layout.fillWidth: true
                         fraction: diskRow.modelData.percent / 100
                         segments: 30
+                        fill: diskRow.critical ? Theme.critColor : Theme.load(diskRow.modelData.percent)
                     }
                     Text {
                         text: "R " + Theme.rate(diskRow.modelData.read) + "   W " + Theme.rate(diskRow.modelData.write)

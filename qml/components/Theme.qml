@@ -57,6 +57,12 @@ QtObject {
     readonly property color accent: dark ? amber : coral           // commentary, selection
     readonly property color cool:   dark ? cyan : teal             // upload, writes, I/O
     readonly property color alert:  dark || skinned ? red : "#E53935"
+    // alert levels (Alerts.qml): fixed, so a skin's palette never hides a warning
+    readonly property color warnColor: dark ? "#FFB000" : "#E8890C"     // warning: amber
+    readonly property color critColor: dark ? "#FF2A4B" : "#D91B33"     // critical: crimson
+    // the CRT terminal and glitch skins jitter a critical figure by a pixel
+    readonly property bool alertJitter: (dark && !skinned) || (!!frame && frame.glitch === true)
+    function levelInk(level, resting) { return level === 2 ? critColor : level === 1 ? warnColor : resting }
     readonly property color reticle: skinned ? bracketColor : dark ? amber : charcoal
     // Fill by how healthy a level is: good, middling, bad
     readonly property color high:   sc("accentGood", dark ? phosphor : teal)

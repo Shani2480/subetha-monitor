@@ -33,6 +33,11 @@ Flickable {
                 required property var modelData
                 readonly property var h: tab.dh[modelData.device] || { read: [], write: [] }
                 readonly property real peak: Math.max(1048576, Math.max.apply(null, h.read.concat(h.write).concat([0])))
+                readonly property int level: Alerts.loadLevel("disk", modelData.percent)
+                alertTracked: true
+                alertLevel: level
+                alertFigure: Theme.pct(modelData.percent)
+                live: tab.shown
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
                 title: (modelData.mount === "/" ? "ROOT" : modelData.label.toUpperCase()) + "  //  " + modelData.mount
@@ -68,7 +73,7 @@ Flickable {
                             Layout.fillWidth: true
                             Text {
                                 text: Theme.pct(drive.modelData.percent)
-                                color: Theme.load(drive.modelData.percent)
+                                color: Theme.levelInk(drive.level, Theme.load(drive.modelData.percent))
                                 font { family: Theme.mono; pixelSize: 34; bold: true }
                             }
                             ColumnLayout {
@@ -90,6 +95,7 @@ Flickable {
                         SegmentBar {
                             Layout.fillWidth: true
                             fraction: drive.modelData.percent / 100
+                            fill: drive.level === 2 ? Theme.critColor : Theme.load(drive.modelData.percent)
                             segments: 32
                             segmentHeight: 14
                         }

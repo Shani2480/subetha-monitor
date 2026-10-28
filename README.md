@@ -87,6 +87,19 @@ Everything is saved in `~/.config/subetha-monitor.json`:
 | `columnWidths`, `columnOrder` | | the process table's layout |
 | `tab`, `width`, `height` | | the last tab and window size |
 
+### Alerts
+
+The CPU, GPU, memory and storage cards follow the widget's alert levels.
+At a warning a card shows `[WARN]` and its figure turns amber. When
+critical, `[CRITICAL: 88°C]` blinks, the card is haloed with a breathing
+crimson glow, and its bar strobes (temperature) or pulses (load). The
+thresholds have the widget's defaults: 75 / 85 °C for temperatures and
+90 / 95 / 90 % for CPU, GPU and memory load. A disk is critical at 90 %
+full. All of them, and switches for the colours and the motion, are in
+Settings → Alerts and saved as `alertsEnabled`, `enablePulsingAnimations`
+and `…Threshold` keys in the config file. The two apps don't share these
+settings: each keeps its own.
+
 ## How it reads
 
 - `backend/telemetry.py`: CPU usage, clocks and package temperature, memory and

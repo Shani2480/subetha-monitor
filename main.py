@@ -52,7 +52,19 @@ DEFAULTS = {
     "tabPosition": "left", "sidebarCollapsed": False, "interval": 1500, "startupTab": "last",
     "columnWidths": {}, "columnOrder": [],
     "sensorInterval": 1000, "sensorCollapsed": [], "sensorColumnWidths": {},
+    # alerts (qml/components/Alerts.qml): the widget's thresholds, °C and %
+    "alertsEnabled": True, "enablePulsingAnimations": True,
+    "cpuTempWarnThreshold": 75, "cpuTempCritThreshold": 85,
+    "gpuTempWarnThreshold": 75, "gpuTempCritThreshold": 85,
+    "cpuLoadCritThreshold": 90, "gpuLoadCritThreshold": 95, "ramLoadCritThreshold": 90,
+    "diskCritThreshold": 90,
 }
+TEMP_RANGE = (40, 110)                  # alert thresholds, °C
+LOAD_RANGE = (50, 100)                  # alert thresholds, %
+THRESHOLDS = {"cpuTempWarnThreshold": TEMP_RANGE, "cpuTempCritThreshold": TEMP_RANGE,
+              "gpuTempWarnThreshold": TEMP_RANGE, "gpuTempCritThreshold": TEMP_RANGE,
+              "cpuLoadCritThreshold": LOAD_RANGE, "gpuLoadCritThreshold": LOAD_RANGE,
+              "ramLoadCritThreshold": LOAD_RANGE, "diskCritThreshold": LOAD_RANGE}
 
 
 class Settings(QObject):
@@ -77,6 +89,7 @@ class Settings(QObject):
     sensorIntervalChanged = Signal()
     sensorCollapsedChanged = Signal()
     sensorColumnWidthsChanged = Signal()
+    alertsChanged = Signal()                # any alert setting
     tabRequested = Signal(str)           # a later launch, or the tray, asked for a tab
 
     def __init__(self, tab=None, parent=None):
@@ -180,6 +193,24 @@ class Settings(QObject):
                                   _setter("sensorColumnWidths", "sensorColumnWidthsChanged"),
                                   notify=sensorColumnWidthsChanged)
     # The theme in force: `theme`, with "auto" resolved by the clock.
+    # (class-body names reach a helper only as defaults)
+    def _threshold(key, setter=_setter, notify=alertsChanged):
+        lo, hi = THRESHOLDS[key]
+        return Property(int, lambda self: min(hi, max(lo, int(self._cfg[key]))),
+                        setter(key, "alertsChanged", lambda v: lo <= v <= hi), notify=notify)
+
+    alertsEnabled = Property(bool, lambda self: bool(self._cfg["alertsEnabled"]),
+                             _setter("alertsEnabled", "alertsChanged"), notify=alertsChanged)
+    enablePulsingAnimations = Property(bool, lambda self: bool(self._cfg["enablePulsingAnimations"]),
+                                       _setter("enablePulsingAnimations", "alertsChanged"), notify=alertsChanged)
+    cpuTempWarnThreshold = _threshold("cpuTempWarnThreshold")
+    cpuTempCritThreshold = _threshold("cpuTempCritThreshold")
+    gpuTempWarnThreshold = _threshold("gpuTempWarnThreshold")
+    gpuTempCritThreshold = _threshold("gpuTempCritThreshold")
+    cpuLoadCritThreshold = _threshold("cpuLoadCritThreshold")
+    gpuLoadCritThreshold = _threshold("gpuLoadCritThreshold")
+    ramLoadCritThreshold = _threshold("ramLoadCritThreshold")
+    diskCritThreshold = _threshold("diskCritThreshold")
 
     dark = Property(bool, lambda self: self._dark, notify=darkChanged)
     startTab = Property(str, lambda self: self._start_tab, constant=True)

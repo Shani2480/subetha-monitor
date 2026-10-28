@@ -1,4 +1,7 @@
 singleton Theme 1.0 Theme.qml
+singleton Alerts 1.0 Alerts.qml
+AlertGlowContainer 1.0 AlertGlowContainer.qml
+SeverityBadge 1.0 SeverityBadge.qml
 ArcGauge 1.0 ArcGauge.qml
 ConfirmDialog 1.0 ConfirmDialog.qml
 CopyableValue 1.0 CopyableValue.qml
@@ -21,3 +24,4 @@ GuideMenuSeparator 1.0 GuideMenuSeparator.qml
 GuideSlider 1.0 GuideSlider.qml
 GuideCombo 1.0 GuideCombo.qml
 ThemeShapeContainer 1.0 ThemeShapeContainer.qml
+SustainedLevel 1.0 SustainedLevel.qml
