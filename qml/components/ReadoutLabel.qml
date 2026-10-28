@@ -15,13 +15,13 @@ ColumnLayout {
     Text {
         text: readout.label
         color: Theme.tint(0.55)
-        font { family: Theme.mono; pixelSize: 9; bold: true; letterSpacing: 1 }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 9; bold: true; letterSpacing: 1 }
     }
     Text {
         Layout.fillWidth: true
         text: readout.value
         color: readout.valueColor
         elide: Text.ElideRight
-        font { family: Theme.mono; pixelSize: readout.valueSize; bold: true }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: readout.valueSize; bold: true }
     }
 }

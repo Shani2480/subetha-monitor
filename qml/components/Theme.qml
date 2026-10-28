@@ -19,8 +19,9 @@ QtObject {
     property var installed: []                   // [{ id, dir, json }] from main.py's `themes`
     property string activeId: "h2g2"             // "h2g2": the Guide's own palette
 
+    // (through JSON, so main.py's lists arrive as plain arrays for skins.js's Array.isArray)
     readonly property var skins: installed.map(function (s) {
-        try { return Skins.entry(s.id, s.dir, s.json) } catch (e) { return null }
+        try { return Skins.entry(s.id, s.dir, JSON.parse(JSON.stringify(s.json))) } catch (e) { return null }
     }).filter(function (s) { return s })
     // Every look the title bar and Settings offer: the Guide's own, then each installed skin.
     readonly property var choices: [{ value: "h2g2", label: "H2G2 · SUB-ETHA GUIDE" }].concat(
@@ -77,7 +78,7 @@ QtObject {
     readonly property color shadow:     sc("shadowColor", dark ? tint(0.4) : ink)
     readonly property color badgeInk:   variant && variant.badgeTextColor ? variant.badgeTextColor
                                       : skin && skin.badgeTextColor ? skin.badgeTextColor : dark ? badge : ink
-    readonly property string badgeText: skin && skin.badgeText ? skin.badgeText : "DON'T PANIC"
+    readonly property string badgeText: !skin ? "DON'T PANIC" : skin.badgeText || active.name.toUpperCase()
     readonly property var quips: skin ? skin.quips : ({})       // { nominal, moderate, highLoad, critical, night }
     readonly property var frame: !skin || !skin.frame ? null
                                : variant ? Object.assign({}, skin.frame, variant.frame) : skin.frame
@@ -101,7 +102,8 @@ QtObject {
     readonly property real stadiumMax: 24
     readonly property string borderStyle: gv("borderStyle", "solid")
     readonly property real borderWidth: gv("borderWidth", skin && skin.borderWidth !== null ? skin.borderWidth : dark ? 1 : 2)
-    readonly property bool cornerBrackets: gv("hasCornerBrackets", skin ? !!(frame && frame.brackets) : true)
+    readonly property bool cornerBrackets: skin && skin.features && skin.features.cornerBrackets !== null
+                                           ? skin.features.cornerBrackets : gv("hasCornerBrackets", skin ? !!(frame && frame.brackets) : true)
     readonly property color bracketColor: frame && frame.brackets ? frame.brackets : !skin ? (dark ? amber : ink) : border
     readonly property bool legacyShadow: !!skin && (skin.shadowOffset[0] || skin.shadowOffset[1]) && shadow.a > 0
     readonly property string shadowType: geo.hasDropShadow === false ? "none"
@@ -116,17 +118,74 @@ QtObject {
     function radiusOf(role) { return role === "pill" ? pillCornerRadius : role === "gauge" ? 2 : cornerRadius }
     function chamferOf(role) { return role === "card" ? chamferCut : pillChamferCut }
 
-    readonly property string mono: "monospace"     // tables and readouts stay aligned whatever the skin's font
-    readonly property string sans: skin && skin.font ? skin.font : dark ? "monospace" : Qt.application.font.family
+    // A skin names its fonts as a list (skins.js); the first installed one is
+    // used, after any the skin ships itself (`fontFiles`) have loaded. Tables
+    // stay aligned through tabular figures (`figures`), whatever the font.
+    property int fontsLoaded: 0                   // bumped as a skin's own font files load
+    readonly property var fontFiles: skin ? skin.fontFiles : []
+    readonly property string sans: { fontsLoaded
+        return skin ? Skins.resolveFont(skin.fonts, Qt.fontFamilies(), "sans-serif")
+                    : dark ? "monospace" : Qt.application.font.family }
+    readonly property string mono: { fontsLoaded
+        return skin ? Skins.resolveFont(skin.monoFonts.length ? skin.monoFonts : skin.fonts, Qt.fontFamilies(), "monospace")
+                    : "monospace" }
+    readonly property var figures: ({ "tnum": 1 })
+    property var fontLoaders: []                  // FontLoaders for the skin's own files, kept alive here
+    onFontFilesChanged: {
+        var loaders = []
+        fontFiles.forEach(function (url) {
+            var known = fontLoaders.find(function (f) { return f.source.toString() === url })
+            if (known) { loaders.push(known); return }
+            var f = Qt.createQmlObject('import QtQuick; FontLoader {}', theme)
+            f.statusChanged.connect(function () { if (f.status === FontLoader.Ready) theme.fontsLoaded++ })
+            f.source = url
+            if (f.status === FontLoader.Ready) theme.fontsLoaded++      // a local file loads at once
+            loaders.push(f)
+        })
+        fontLoaders = loaders
+    }
+
+    // A label in the Guide's own words, or the skin's (its narrative.lexicon)
+    // or plain ones: no H2G2 lore shows under a skin.
+    function lex(key, h2g2Text, neutralText) {
+        if (!skin) return h2g2Text
+        return skin.lexicon && skin.lexicon[key] ? skin.lexicon[key] : neutralText
+    }
+
+    // The effects layer (ThemeEffectsLayer): a skin turns each on in its
+    // `features`; a 1.x skin without them keeps its frame's scanlines and
+    // brackets. The Guide's own: the CRT's on the dark terminal.
+    function feature(key, legacy) { var v = skin.features ? skin.features[key] : null; return v === null || v === undefined ? legacy : v }
+    readonly property var fx: !skin ? { crtScanlines: dark, phosphorDecay: dark, cornerBrackets: dark, glassBlur: false, grid: true } : {
+        crtScanlines: feature("crtScanlines", dark && !!frame && !!frame.scanlines),
+        phosphorDecay: feature("phosphorDecay", false),
+        cornerBrackets: feature("cornerBrackets", !!frame && !!frame.brackets),
+        glassBlur: feature("glassBlur", false),
+        grid: feature("grid", false)
+    }
+
+    // ---- gauges ----
+    readonly property color gaugeTrack: sc("gaugeTrack", tint(dark ? 0.12 : 0.1))
+    readonly property color gaugeUsage: sc("gaugeFillUsage", "transparent")   // transparent: by level (load())
+    readonly property color gaugeTemp:  sc("gaugeFillTemp", dark ? amber : mustard)
+    readonly property color gaugeHot:   skinned ? sc("gaugeFillTemp", amber) : "#FF8A1A"
+    readonly property color gaugeEdge:  sc("gaugeFillEdge", "transparent")
     // Plain Rectangle radii: the Guide's own, or what the skin's shapes imply.
     readonly property real outerRadius: !skin ? (dark ? 4 : 16) : cardShape === "rounded" ? cornerRadius : cardShape === "stadium" ? 16 : 0
     readonly property real pillRadius: !skin ? (dark ? 2 : 10) : pillShape === "rounded" ? pillCornerRadius : pillShape === "stadium" ? stadiumMax : 0
     // 2px 2px solid charcoal, no blur, on the film pages; a skin's own flat-2d offset
     readonly property bool flatShadow: !skin ? !dark : shadowType === "flat-2d" && (shadowX !== 0 || shadowY !== 0)
     // The tube's scanlines and the coordinate grid: a skin's chassis is its own ornament.
-    readonly property bool scanlines: dark && (!skin || (!!frame && !!frame.scanlines))
-    readonly property real scanlineOpacity: frame && frame.scanlines ? frame.scanlines : 0.08
-    readonly property bool grid: !skin
+    readonly property bool scanlines: fx.crtScanlines
+    readonly property real scanlineOpacity: frame && frame.scanlines ? frame.scanlines : skin ? 0.12 : 0.08
+    readonly property bool grid: fx.grid
+
+    // Small parts drawn as plain Rectangles (dividers, dots, chips, slider
+    // tracks): the terminal's 1px square, the film's 2px round, or the skin's.
+    readonly property real line: !skin ? (dark ? 1 : 2) : Math.max(1, borderWidth)
+    function small(r) { return !skin ? (dark ? 0 : r) : pillShape === "sharp" || pillShape === "chamfer" ? 0 : r }
+    readonly property bool roundCaps: !skin ? !dark : ["stadium", "wavy", "rounded"].indexOf(gaugeShape) >= 0
+    readonly property bool terminal: dark && !skin       // the 1981 CRT's own touches
 
     readonly property int animMs: 180
 
@@ -145,10 +204,32 @@ QtObject {
 
     function tint(a) { return Qt.rgba(ink.r, ink.g, ink.b, a) }
     function withAlpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
+
+    // Text straight on `bg` (the masthead, the status line). A skin's cards
+    // carry its text colours, but its background may not: Luna's royal blue
+    // under Explorer's dark grey text. The skin's textOnBackground wins; else
+    // the colour asked for if it reads there (4.5:1), else black or white.
+    function luminance(c) {
+        var f = v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+        return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b)
+    }
+    function contrast(a, b) {
+        var x = luminance(a), y = luminance(b)
+        return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+    }
+    function onBg(c, a) {
+        if (!skinned) return withAlpha(c, a === undefined ? c.a : a)
+        var pick = skinColors.textOnBackground ? Qt.color(skinColors.textOnBackground)
+                 : contrast(c, bg) >= 4.5 ? c
+                 : contrast(Qt.rgba(1, 1, 1, 1), bg) >= contrast(Qt.rgba(0, 0, 0, 1), bg) ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(0, 0, 0, 1)
+        return withAlpha(pick, a === undefined ? 1 : a)
+    }
     // Load-style level: higher is worse.
     function load(p) { return p >= 85 ? low : p >= 50 ? mid : high }
     // Battery-style level: higher is better.
     function level(p) { return p >= 50 ? high : p >= 20 ? mid : low }
+    // A gauge's fill by load: a skin's usage colour while nominal, then busy and hot.
+    function gaugeLoad(p) { return p >= 85 ? low : p >= 50 ? mid : gaugeUsage.a > 0 ? gaugeUsage : high }
     function heat(t) { return t >= 90 ? low : t >= 75 ? mid : high }
 
     // ---- formatting ----

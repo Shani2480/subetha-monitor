@@ -10,7 +10,7 @@ ComboBox {
 
     implicitWidth: 240
     implicitHeight: 32
-    font { family: Theme.mono; pixelSize: 12; bold: true }
+    font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true }
 
     contentItem: Text {
         leftPadding: 12
@@ -26,7 +26,7 @@ ComboBox {
         anchors.verticalCenter: parent.verticalCenter
         text: combo.popup.visible ? "▴" : "▾"
         color: Theme.accent
-        font { family: Theme.mono; pixelSize: 13; bold: true }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 13; bold: true }
     }
     background: Item {
         ThemeShapeContainer {   // a skin's pill shape
@@ -48,7 +48,7 @@ ComboBox {
             width: parent.width - 2; height: parent.height - 2
             radius: Theme.pillRadius
             color: Theme.dark ? (combo.hovered ? Theme.tint(0.08) : "transparent") : Theme.cream
-            border { width: Theme.dark ? 1 : 2; color: combo.visualFocus || combo.popup.visible ? Theme.accent : Theme.dark ? Theme.tint(0.5) : Theme.charcoal }
+            border { width: Theme.line; color: combo.visualFocus || combo.popup.visible ? Theme.accent : Theme.dark ? Theme.tint(0.5) : Theme.charcoal }
         }
     }
     delegate: ItemDelegate {
@@ -83,7 +83,7 @@ ComboBox {
         background: Rectangle {
             radius: Theme.skinned ? Theme.pillRadius : Theme.dark ? 3 : 10
             color: Theme.skinned ? Theme.card : Theme.dark ? Theme.crtCard : Theme.cream
-            border { width: Theme.skinned ? Math.max(1, Theme.borderWidth) : Theme.dark ? 1 : 2
+            border { width: Theme.skinned ? Math.max(1, Theme.borderWidth) : Theme.line
                      color: Theme.skinned ? Theme.border : Theme.dark ? Theme.phosphor : Theme.charcoal }
         }
     }

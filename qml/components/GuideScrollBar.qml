@@ -11,7 +11,7 @@ ScrollBar {
     contentItem: Rectangle {
         implicitWidth: 6
         implicitHeight: 6
-        radius: Theme.dark ? 0 : 3
+        radius: Theme.small(3)
         color: bar.pressed ? Theme.accent : Theme.tint(bar.hovered ? 0.6 : 0.35)
         opacity: bar.active || bar.hovered ? 1 : 0.5
     }

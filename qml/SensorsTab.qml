@@ -63,7 +63,7 @@ ColumnLayout {
         Text {
             text: "POLL"
             color: Theme.tint(0.6)
-            font { family: Theme.mono; pixelSize: 11; bold: true }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
         }
         Repeater {
             model: hwinfo.intervals
@@ -119,12 +119,12 @@ ColumnLayout {
                         text: head.def.label
                         elide: Text.ElideRight
                         color: Theme.tint(0.65)
-                        font { family: Theme.mono; pixelSize: 11; bold: true; letterSpacing: 1 }
+                        font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true; letterSpacing: 1 }
                     }
                     Rectangle {   // divider
                         visible: !head.last
                         anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                        width: Theme.dark ? 1 : 2
+                        width: Theme.line
                         height: parent.height - 10
                         color: grip.containsMouse || grip.pressed ? Theme.accent : Theme.tint(0.2)
                     }
@@ -147,7 +147,7 @@ ColumnLayout {
                 }
             }
         }
-        Rectangle { Layout.fillWidth: true; height: Theme.dark ? 1 : 2; color: Theme.tint(Theme.dark ? 0.5 : 1) }
+        Rectangle { Layout.fillWidth: true; height: Theme.line; color: Theme.tint(Theme.dark ? 0.5 : 1) }
 
         // ---- rows ----
         ListView {
@@ -216,13 +216,13 @@ ColumnLayout {
                                 width: 10
                                 text: row.expanded ? "▾" : "▸"
                                 color: Theme.accent
-                                font { family: Theme.mono; pixelSize: 12; bold: true }
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true }
                             }
                             Rectangle {   // the device's hottest reading
                                 visible: row.device && row.heat >= 0
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 8; height: 8
-                                radius: Theme.dark ? 0 : 4
+                                radius: Theme.small(4)
                                 color: Theme.heat(row.heat)
                             }
                             Text {
@@ -232,7 +232,7 @@ ColumnLayout {
                                 text: row.label
                                 elide: Text.ElideRight
                                 color: row.device ? Theme.ink : row.sensor ? Theme.tint(0.85) : Theme.accent
-                                font { family: Theme.mono; pixelSize: row.device ? 13 : row.sensor ? 12 : 11
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: row.device ? 13 : row.sensor ? 12 : 11
                                        bold: !row.sensor; letterSpacing: row.sensor ? 0 : 1
                                        capitalization: row.sensor ? Font.MixedCase : Font.AllUppercase }
                             }
@@ -242,7 +242,7 @@ ColumnLayout {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: "(" + row.count + ")"
                                 color: Theme.tint(0.45)
-                                font { family: Theme.mono; pixelSize: 10 }
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 10 }
                             }
                         }
                     }
@@ -257,10 +257,19 @@ ColumnLayout {
                             text: row.cur
                             elide: Text.ElideLeft
                             color: Theme.ink
-                            font { family: Theme.mono; pixelSize: 12; bold: true }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true }
+                        }
+                        DynamicMetricGauge {   // a skin's: its own gauge shape
+                            visible: Theme.skinned && row.sensor && row.frac >= 0
+                            anchors { right: parent.right; rightMargin: 10; bottom: parent.bottom; bottomMargin: 1 }
+                            width: parent.width - 18; height: 4
+                            value: Math.max(0.02, row.frac)
+                            fillColor: Theme.accent
+                            segments: 16
+                            live: false
                         }
                         Rectangle {
-                            visible: row.sensor && row.frac >= 0
+                            visible: !Theme.skinned && row.sensor && row.frac >= 0
                             anchors { right: parent.right; rightMargin: 10; bottom: parent.bottom; bottomMargin: 2 }
                             width: parent.width - 18; height: 2
                             color: Theme.tint(0.1)
@@ -282,7 +291,7 @@ ColumnLayout {
                             text: modelData.v
                             elide: Text.ElideLeft
                             color: Theme.tint(0.65)
-                            font { family: Theme.mono; pixelSize: 12 }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 12 }
                         }
                     }
                 }
@@ -297,7 +306,7 @@ ColumnLayout {
                 text: hwinfo.samples === 0 ? "SCANNING /SYS/CLASS/HWMON FOR SENSORS..."
                     : hwinfo.filterText ? "NO SENSORS MATCH." : "THE KERNEL REPORTS NO SENSORS ON THIS MACHINE."
                 color: Theme.tint(0.5)
-                font { family: Theme.mono; pixelSize: 13 }
+                font { family: Theme.mono; features: Theme.figures; pixelSize: 13 }
             }
         }
     }
@@ -310,6 +319,6 @@ ColumnLayout {
                               : " · MIN / MAX / AVERAGE COVER THE WHOLE SESSION")
         color: hwinfo.logging ? Theme.accent : Theme.tint(0.5)
         elide: Text.ElideRight
-        font { family: Theme.mono; pixelSize: 10 }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 10 }
     }
 }

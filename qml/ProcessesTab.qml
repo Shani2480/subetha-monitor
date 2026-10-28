@@ -124,7 +124,7 @@ ColumnLayout {
                 text: modelData.label
                 pixelSize: 10
                 checked: processes.quickFilter === modelData.key
-                tone: modelData.key === "heavy" ? (Theme.dark ? Theme.amber : Theme.coral) : Theme.ink
+                tone: modelData.key === "heavy" ? Theme.accent : Theme.ink
                 onClicked: processes.quickFilter = modelData.key
             }
         }
@@ -134,7 +134,7 @@ ColumnLayout {
             elide: Text.ElideLeft
             text: processes.model.count + " / " + processes.total + " PROCESSES"
             color: Theme.tint(0.6)
-            font { family: Theme.mono; pixelSize: 11; bold: true }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
         }
     }
 
@@ -195,7 +195,7 @@ ColumnLayout {
                                     visible: head.dragging
                                     radius: Theme.pillRadius
                                     color: Theme.card
-                                    border { width: Theme.dark ? 1 : 2; color: Theme.accent }
+                                    border { width: Theme.line; color: Theme.accent }
                                 }
                                 Row {
                                     anchors.verticalCenter: parent.verticalCenter
@@ -207,7 +207,7 @@ ColumnLayout {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: head.def.label
                                         color: head.sorted ? Theme.accent : headArea.containsMouse ? Theme.ink : Theme.tint(0.65)
-                                        font { family: Theme.mono; pixelSize: 11; bold: true; letterSpacing: 1 }
+                                        font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true; letterSpacing: 1 }
                                     }
                                     Shape {   // sort direction
                                         id: arrow
@@ -258,7 +258,7 @@ ColumnLayout {
                                 }
                                 Rectangle {   // divider
                                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                                    width: Theme.dark ? 1 : 2
+                                    width: Theme.line
                                     height: parent.height - 10
                                     color: grip.containsMouse || grip.pressed ? Theme.accent : Theme.tint(0.2)
                                 }
@@ -280,7 +280,7 @@ ColumnLayout {
                             }
                         }
                     }
-                    Rectangle { width: parent.width; height: Theme.dark ? 1 : 2; color: Theme.tint(Theme.dark ? 0.5 : 1) }
+                    Rectangle { width: parent.width; height: Theme.line; color: Theme.tint(Theme.dark ? 0.5 : 1) }
 
                     // ---- rows ----
                     ListView {
@@ -344,7 +344,7 @@ ColumnLayout {
                                                  : cell.modelData === "nice" && row.nice > 0 ? Theme.tint(0.55)
                                                  : cell.modelData === "write" && row.write >= 1 ? Theme.cool
                                                  : Theme.ink
-                                            font { family: Theme.mono; pixelSize: 12 }
+                                            font { family: Theme.mono; features: Theme.figures; pixelSize: 12 }
                                             text: {
                                                 switch (cell.modelData) {
                                                 case "pid": return row.pid
@@ -370,7 +370,7 @@ ColumnLayout {
                                                 text: row.name
                                                 elide: Text.ElideRight
                                                 color: Theme.ink
-                                                font { family: Theme.mono; pixelSize: 12; bold: true }
+                                                font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true }
                                             }
                                             Text {
                                                 anchors.verticalCenter: parent.verticalCenter
@@ -378,7 +378,7 @@ ColumnLayout {
                                                 text: row.cmd
                                                 elide: Text.ElideRight
                                                 color: Theme.tint(0.45)
-                                                font { family: Theme.mono; pixelSize: 11 }
+                                                font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
                                             }
                                         }
                                     }
@@ -418,9 +418,9 @@ ColumnLayout {
             Text {
                 anchors.centerIn: parent
                 visible: list.count === 0
-                text: processes.total === 0 ? "SCANNING THE PROCESS TABLE..." : "NO PROCESSES MATCH. THEY MAY HAVE GONE FOR A TOWEL."
+                text: processes.total === 0 ? "SCANNING THE PROCESS TABLE..." : Theme.lex("noMatch", "NO PROCESSES MATCH. THEY MAY HAVE GONE FOR A TOWEL.", "NO PROCESSES MATCH.")
                 color: Theme.tint(0.5)
-                font { family: Theme.mono; pixelSize: 13 }
+                font { family: Theme.mono; features: Theme.figures; pixelSize: 13 }
             }
         }
     }
@@ -435,7 +435,7 @@ ColumnLayout {
                                       : "CLICK A HEADING TO SORT (AGAIN TO FLIP), DRAG IT TO REORDER, DRAG ITS EDGE TO RESIZE. RIGHT-CLICK A PROCESS FOR ACTIONS."
             color: Theme.tint(0.5)
             elide: Text.ElideRight
-            font { family: Theme.mono; pixelSize: 10 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 10 }
         }
         GuideButton { text: "RESET COLUMNS"; pixelSize: 10; onClicked: tab.resetColumns() }
     }
@@ -473,7 +473,7 @@ ColumnLayout {
         id: confirm
         property string which: "TERM"
         parent: Overlay.overlay
-        tone: which === "KILL" ? Theme.alert : (Theme.dark ? Theme.amber : Theme.coral)
+        tone: which === "KILL" ? Theme.alert : Theme.accent
         onAccepted: processes.sendSignal(tab.selectedPid, which)
     }
 

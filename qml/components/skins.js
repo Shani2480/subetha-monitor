@@ -10,11 +10,22 @@
 // lines, and SVGs inside the skin's own folder for the built-in pieces that
 // draw them (HandheldChassis.qml, BezelDecor.qml, weather/SpriteRoamers.qml).
 // Anything malformed is dropped here, so the views can trust what they get.
+//
+// Schema 2.0.0 adds, all optional and read alongside the older keys:
+//   "fontFamily": "Tahoma, Arial, sans-serif"   a CSS-style list; the first installed family wins
+//   "fonts": ["assets/fonts/X.ttf"]             font files the skin ships, loaded before the list is resolved
+//   "features": { enableCrtScanlines, enablePhosphorDecay, enableCornerBrackets, enableGlassBlur, enableGrid }
+//   "variants": { "dark": { background, …, gaugeUsage, gaugeTemp, badgeBackground, badgeText } }   flat keys
+//   "narrative": { badgeLabel, weatherSkyHazard, weatherSkyHazardSecondary, roamerPrimary,
+//                  roamerSecondary, quips: { nominal, critical, … }, lexicon: { <key>: <label> } }
+// Under any skin the Guide's own lore (the towel, the whale, "DON'T PANIC")
+// never shows: what the skin leaves out falls back to plain labels.
 
 var colorKeys = ["background", "cardBackground", "cardBackgroundHover", "textPrimary", "textSecondary",
                  "accent", "accentSecondary", "accentTertiary", "accentGood", "border", "shadowColor",
                  "gaugeTrack", "gaugeFillUsage", "gaugeFillTemp", "sparkline", "sparklineFill",
-                 "netDown", "netUp", "gaugeFillEdge", "sparklineDanger", "sparklineHot", "commentary"]
+                 "netDown", "netUp", "gaugeFillEdge", "sparklineDanger", "sparklineHot", "commentary",
+                 "textOnBackground"]           // text drawn straight on `background` (mastheads); default: whichever reads
 var quipKeys = ["nominal", "moderate", "highLoad", "critical", "night"]
 var frameColorKeys = ["dpad", "brackets", "slash", "watermarkColor", "rivets", "dials"]
 
@@ -30,10 +41,33 @@ function color(v) {
 function number(v, min, max) { return typeof v === "number" && isFinite(v) ? Math.max(min, Math.min(max, v)) : null }
 function text(v, max) { return typeof v === "string" ? v.slice(0, max) : "" }
 // An image inside the skin's folder, as a file URL; "" for anything that could leave it.
-function asset(dir, rel) {
-    if (typeof rel !== "string" || !/^[A-Za-z0-9_-]+(\/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*\.(svg|png)$/.test(rel)) return ""
+function asset(dir, rel, kinds) {
+    var re = new RegExp("^[A-Za-z0-9_-]+(\\/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*\\.(" + (kinds || "svg|png") + ")$")
+    if (typeof rel !== "string" || !re.test(rel)) return ""
     return "file://" + encodeURI(dir + "/" + rel)
 }
+
+// "Tahoma, Arial, sans-serif" as ["Tahoma", "Arial", "sans-serif"]: family
+// names only, quotes dropped, "-apple-system" and the like skipped.
+function fontList(v) {
+    if (typeof v !== "string") return []
+    return v.split(",").map(f => f.trim().replace(/^["']|["']$/g, ""))
+            .filter(f => /^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$/.test(f)).slice(0, 6)
+}
+var genericFonts = ["sans-serif", "serif", "monospace", "system-ui", "cursive", "fantasy"]
+// The first of `list` that `installed` (Qt.fontFamilies()) holds, matched
+// without regard to case; a generic family ends the search, as in CSS.
+function resolveFont(list, installed, fallback) {
+    var have = {}
+    ;(installed || []).forEach(f => { have[String(f).toLowerCase()] = f })
+    for (var i = 0; i < list.length; i++) {
+        var f = list[i], lower = f.toLowerCase()
+        if (genericFonts.indexOf(lower) >= 0) return lower === "system-ui" ? (fallback || "sans-serif") : lower
+        if (have[lower]) return have[lower]
+    }
+    return fallback || "sans-serif"
+}
+function flag(v) { return typeof v === "boolean" ? v : null }
 
 function oneOf(v, options) { return options.indexOf(v) >= 0 ? v : "" }
 // The skin's `geometry` block: the shape of cards, pills, gauges and
@@ -47,7 +81,7 @@ function parseGeometry(g) {
     return {
         cardShape: oneOf(g.cardShape === "custom" ? "" : g.cardShape, shapes),   // "custom": the skin's frame decides
         pillShape: oneOf(g.pillShape, shapes),
-        gaugeShape: oneOf(g.gaugeShape, ["flat", "stadium", "segmented", "chamfer"]),
+        gaugeShape: oneOf(g.gaugeShape, ["flat", "stadium", "segmented", "chamfer", "wavy"]),
         cornerRadius: number(g.cornerRadius, 0, 40),
         pillRadius: number(g.pillRadius, 0, 40),
         chamferCut: number(g.chamferCut, 0, 24),
@@ -62,9 +96,13 @@ function parseGeometry(g) {
     }
 }
 
+// The 2.0.0 names of colour keys that predate them.
+var colorAliases = { gaugeUsage: "gaugeFillUsage", gaugeTemp: "gaugeFillTemp" }
 function colorMap(c, keys) {
     var out = {}
-    keys.forEach(k => { var v = color((c || {})[k]); if (v) out[k] = v })
+    c = c || {}
+    Object.keys(colorAliases).forEach(k => { var v = color(c[k]); if (v && keys.indexOf(colorAliases[k]) >= 0) out[colorAliases[k]] = v })
+    keys.forEach(k => { var v = color(c[k]); if (v) out[k] = v })
     return out
 }
 // One of `variants.light` / `variants.dark`: colours (the `colors` keys,
@@ -75,8 +113,8 @@ function parseVariant(v) {
     var frame = v.frame || {}
     return {
         colors: colorMap(v.colors || v, colorKeys),       // nested under "colors" or flat
-        badgeColor: color(v.badgeColor),
-        badgeTextColor: color(v.badgeTextColor),
+        badgeColor: color(v.badgeColor) || color(v.badgeBackground) || color((v.colors || {}).badgeBackground),
+        badgeTextColor: color(v.badgeTextColor) || color(v.badgeText) || color((v.colors || {}).badgeText),
         frame: Object.assign(colorMap(frame, frameColorKeys),
                              Array.isArray(frame.buttons) ? { buttons: frame.buttons.slice(0, 4).map(color).filter(b => b) } : {},
                              Array.isArray(frame.hazard) ? { hazard: frame.hazard.slice(0, 2).map(color).filter(b => b) } : {},
@@ -88,14 +126,20 @@ function parseVariant(v) {
 function parseStyle(json, dir) {
     var c = json.colors || {}
     var colors = colorMap(c, colorKeys)
+    var story2 = json.narrative && typeof json.narrative === "object" ? json.narrative : {}
     var quips = {}
-    quipKeys.forEach(k => { var v = text((json.commentaryTemplates || {})[k], 160); if (v) quips[k] = v })
+    quipKeys.forEach(k => { var v = text((story2.quips || {})[k], 160) || text((json.commentaryTemplates || {})[k], 160); if (v) quips[k] = v })
+    var lexicon = {}
+    var words = story2.lexicon && typeof story2.lexicon === "object" ? story2.lexicon : {}
+    Object.keys(words).slice(0, 64).forEach(k => { var v = text(words[k], 80); if (/^[A-Za-z][A-Za-z0-9]{0,31}$/.test(k) && v) lexicon[k] = v })
+    var feats = json.features && typeof json.features === "object" ? json.features : {}
     var clockQuips = {}
     ;["nominal", "stress"].forEach(k => { var v = text((json.clockQuips || {})[k], 120); if (v) clockQuips[k] = v })
     // `narrativeAssets`: a short form of the badge, the walkers and the
     // storm's falling hazards. The long forms (badgeText, roamers) win.
     var story = json.narrativeAssets && typeof json.narrativeAssets === "object" ? json.narrativeAssets : {}
     var walkers = Array.isArray(json.roamers) ? json.roamers
+                : story2.roamerPrimary ? [story2.roamerPrimary, story2.roamerSecondary].filter(f => f).map((f, i) => ({ frames: [f], follow: i ? 10 : 0 }))
                 : ["primaryRoamer", "secondaryRoamer"].filter(k => story[k]).map((k, i) => ({ frames: [story[k]], follow: i ? 10 : 0 }))
     var variants = json.variants && typeof json.variants === "object" ? json.variants : {}
     var frame = json.frame || {}
@@ -109,8 +153,20 @@ function parseStyle(json, dir) {
         clockQuips: clockQuips,
         aiQuip: text(json.aiQuip, 120),
         // tumbling down the weather hero in rain and thunder, in place of the whale and the petunias
-        hazards: [asset(dir, story.fallingSkyHazard), asset(dir, story.hazardSecondary)].filter(v => v),
-        font: /^[A-Za-z0-9 _-]{1,64}$/.test(json.fontFamily || "") ? json.fontFamily : "",
+        hazards: [asset(dir, story2.weatherSkyHazard || story.fallingSkyHazard),
+                  asset(dir, story2.weatherSkyHazardSecondary || story.hazardSecondary)].filter(v => v),
+        font: fontList(json.fontFamily)[0] || "",                 // the first named; the theme resolves `fonts`
+        fonts: fontList(json.fontFamily),
+        monoFonts: fontList(json.monoFontFamily),                 // tables and figures; default: the skin's font
+        fontFiles: (Array.isArray(json.fonts) ? json.fonts : []).slice(0, 4).map(f => asset(dir, f, "ttf|otf")).filter(v => v),
+        features: {
+            crtScanlines: flag(feats.enableCrtScanlines),
+            phosphorDecay: flag(feats.enablePhosphorDecay),
+            cornerBrackets: flag(feats.enableCornerBrackets),
+            glassBlur: flag(feats.enableGlassBlur),
+            grid: flag(feats.enableGrid)
+        },
+        lexicon: lexicon,
         colors: colors,
         borderWidth: number(c.borderWidth, 0, 6),
         borderRadius: number(c.borderRadius, 0, 40),
@@ -124,7 +180,7 @@ function parseStyle(json, dir) {
         sparklineWidth: number(c.sparklineWidth, 0.5, 4),
         sparklineDangerAbove: number(c.sparklineDangerAbove, 0, 1),
         sparklineHotAbove: number(c.sparklineHotAbove, 0, 1),
-        badgeText: text(json.badgeText, 40) || text(story.badgeText, 40),
+        badgeText: text(story2.badgeLabel, 40) || text(json.badgeText, 40) || text(story.badgeText, 40),
         badgeColor: color(json.badgeColor) || color(story.badgeColor),
         badgeTextColor: color(json.badgeTextColor),
         quips: quips,

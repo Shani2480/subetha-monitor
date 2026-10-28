@@ -24,11 +24,11 @@ Flickable {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
         color: Theme.tint(0.55)
-        font { family: Theme.mono; pixelSize: 11 }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
     }
     component Label: Text {
         color: Theme.ink
-        font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 0.6 }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true; letterSpacing: 0.6 }
     }
 
     // A thumbnail of one look, drawn in its own palette whatever the current
@@ -55,7 +55,7 @@ Flickable {
         Repeater {
             model: 3
             Text { required property int index; x: parent.width - 34 + index * 10; y: 2; text: ["_", "□", "✕"][index]
-                   color: pv.ink; font { family: Theme.mono; pixelSize: 8 } }
+                   color: pv.ink; font { family: Theme.mono; features: Theme.figures; pixelSize: 8 } }
         }
         Rectangle {   // the rail and its pill
             x: 2; y: 17; width: 38; height: parent.height - 19
@@ -124,7 +124,7 @@ Flickable {
             color: Theme.dark ? (tc.selected ? Theme.withAlpha(Theme.phosphor, 0.08) : area.containsMouse ? Theme.tint(0.05) : Theme.card)
                  : tc.selected ? Qt.tint(Theme.cream, Theme.withAlpha(Theme.mustard, 0.45))
                  : Qt.tint(Theme.card, area.containsMouse ? Theme.tint(0.05) : "transparent")
-            border { width: tc.selected ? 2 : (Theme.dark ? 1 : 2); color: tc.selected ? Theme.accent : Theme.dark ? Theme.tint(0.4) : Theme.charcoal }
+            border { width: tc.selected ? 2 : (Theme.line); color: tc.selected ? Theme.accent : Theme.dark ? Theme.tint(0.4) : Theme.charcoal }
         }
         ColumnLayout {
             id: col
@@ -350,18 +350,18 @@ Flickable {
                 Layout.fillWidth: true
                 spacing: 16
                 ThemeCard {
-                    key: "dark"; title: "1981 SUB-ETHA CRT DARK"
-                    blurb: "Phosphor green on tube black, scanlines and amber reticles."
+                    key: "dark"; title: Theme.lex("darkTitle", "1981 SUB-ETHA CRT DARK", "DARK")
+                    blurb: Theme.lex("darkBlurb", "Phosphor green on tube black, scanlines and amber reticles.", "The skin's dark variant.")
                     Preview { anchors.fill: parent; look: true }
                 }
                 ThemeCard {
-                    key: "light"; title: "2005 MOVIE LIGHT"
-                    blurb: "Cream Encyclopedia pages, charcoal ink, hard flat shadows."
+                    key: "light"; title: Theme.lex("lightTitle", "2005 MOVIE LIGHT", "LIGHT")
+                    blurb: Theme.lex("lightBlurb", "Cream Encyclopedia pages, charcoal ink, hard flat shadows.", "The skin's light variant.")
                     Preview { anchors.fill: parent; look: false }
                 }
                 ThemeCard {
                     key: "auto"; title: "SOLAR AUTO"
-                    blurb: "The film pages from 07:00 to 19:00, the terminal after dark."
+                    blurb: Theme.lex("autoBlurb", "The film pages from 07:00 to 19:00, the terminal after dark.", "Light from 07:00 to 19:00, dark after.")
                     Item {
                         anchors.fill: parent
                         Item {
@@ -373,7 +373,7 @@ Flickable {
                             Preview { x: -parent.x; width: parent.parent.width; height: parent.height; look: true }
                         }
                         Text { anchors.centerIn: parent; text: "☀ / ☾"; color: Theme.amber; style: Text.Outline; styleColor: Theme.charcoal
-                               font { family: Theme.mono; pixelSize: 16; bold: true } }
+                               font { family: Theme.mono; features: Theme.figures; pixelSize: 16; bold: true } }
                     }
                 }
             }

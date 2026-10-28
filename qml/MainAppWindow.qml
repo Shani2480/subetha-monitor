@@ -96,7 +96,7 @@ ApplicationWindow {
     minimumHeight: 620
     visible: false                       // shown from Component.onCompleted, unless starting in the tray
     flags: Qt.Window | Qt.FramelessWindowHint
-    title: "Sub-Etha System Monitor"
+    title: Theme.lex("appTitle", "Sub-Etha System Monitor", "System Monitor")
     color: "transparent"                 // the frame paints the page, round-cornered
     font.family: Theme.sans
 
@@ -206,12 +206,17 @@ ApplicationWindow {
             // terminal, charcoal hairlines on the cream page.
             Image {
                 anchors.fill: parent
-                visible: Theme.grid
+                visible: Theme.grid && !Theme.skinned
                 source: Theme.dark ? "components/grid-dark.svg" : "components/grid-light.svg"
                 sourceSize: Qt.size(24, 24)
                 fillMode: Image.Tile
                 smooth: false
                 opacity: Theme.dark ? 0.05 : 0.06
+            }
+            SkinGrid {   // a skin's grid, in its ink
+                anchors.fill: parent
+                visible: Theme.grid && Theme.skinned
+                color: Theme.onBg(Theme.ink)
             }
 
             ColumnLayout {
@@ -230,7 +235,7 @@ ApplicationWindow {
                 }
                 Rectangle {   // the rule under the title bar
                     Layout.fillWidth: true
-                    implicitHeight: Theme.skinned ? Math.max(1, Theme.borderWidth) : Theme.dark ? 1 : 2
+                    implicitHeight: Theme.skinned ? Math.max(1, Theme.borderWidth) : Theme.line
                     color: Theme.skinned ? Theme.border : Theme.dark ? Theme.tint(0.45) : Theme.charcoal
                 }
 
@@ -276,15 +281,15 @@ ApplicationWindow {
                                 Layout.preferredWidth: 44
                                 Layout.preferredHeight: 44
                                 duty: (win.t.fans || []).reduce((m, f) => Math.max(m, f.duty), 0)
-                                strokeColor: Theme.ink
+                                strokeColor: Theme.onBg(Theme.ink)
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
                                 Text {
-                                    text: Theme.frame && Theme.frame.watermark ? "THE SUB-ETHA SYSTEM MONITOR  " + Theme.frame.watermark
-                                                                                : "THE SUB-ETHA SYSTEM MONITOR"
-                                    color: Theme.ink
+                                    text: Theme.lex("mastheadTitle", "THE SUB-ETHA SYSTEM MONITOR", "SYSTEM MONITOR")
+                                          + (Theme.frame && Theme.frame.watermark ? "  " + Theme.frame.watermark : "")
+                                    color: Theme.onBg(Theme.ink)
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
                                     font { family: Theme.sans; pixelSize: 24; weight: Font.Black; letterSpacing: Theme.dark ? 3 : 1.5 }
@@ -293,16 +298,16 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     text: [win.specs.host, win.specs.os, "LINUX " + win.specs.kernel,
                                            "UP " + Theme.duration(win.t.uptime || 0)].join("  ·  ").toUpperCase()
-                                    color: Theme.skinned ? Theme.inkSoft : Theme.tint(0.65)
+                                    color: Theme.skinned ? Theme.onBg(Theme.inkSoft, 0.85) : Theme.tint(0.65)
                                     elide: Text.ElideRight
-                                    font { family: Theme.mono; pixelSize: 11; letterSpacing: 0.6 }
+                                    font { family: Theme.mono; features: Theme.figures; pixelSize: 11; letterSpacing: 0.6 }
                                 }
                                 Text {
                                     id: quip
                                     Layout.fillWidth: true
-                                    color: Theme.commentary
+                                    color: Theme.onBg(Theme.commentary)
                                     elide: Text.ElideRight
-                                    font { family: Theme.mono; pixelSize: 11; italic: !Theme.dark }
+                                    font { family: Theme.mono; features: Theme.figures; pixelSize: 11; italic: !Theme.dark && !Theme.skinned }
                                     readonly property var lines: [
                                         "Space is big. Your process table is merely large.",
                                         "The answer is 42. The question is your load average.",
@@ -319,7 +324,8 @@ ApplicationWindow {
                                     // A skin's own lines, after dark its night one among them.
                                     readonly property var skinLines: ["nominal", "moderate", "night"]
                                         .filter(k => Theme.quips[k] && (k !== "night" || Theme.dark)).map(k => Theme.quips[k])
-                                    readonly property var shown: skinLines.length ? skinLines : lines
+                                    readonly property var plain: ["Telemetry refreshed every " + (telemetry.interval / 1000).toFixed(1) + " s."]
+                                    readonly property var shown: skinLines.length ? skinLines : Theme.skinned ? plain : lines
                                     property int index: Math.floor(Math.random() * lines.length)
                                     text: "> " + shown[index % shown.length]
                                     Timer { interval: 14000; repeat: true; running: true
@@ -329,9 +335,9 @@ ApplicationWindow {
                             Text {
                                 Layout.alignment: Qt.AlignTop
                                 Layout.topMargin: 6
-                                text: "SUB-ETHA FEED " + (telemetry.interval / 1000).toFixed(1) + " s"
-                                color: Theme.tint(0.5)
-                                font { family: Theme.mono; pixelSize: 10; letterSpacing: 1 }
+                                text: Theme.lex("feedLabel", "SUB-ETHA FEED", "LIVE FEED") + " " + (telemetry.interval / 1000).toFixed(1) + " s"
+                                color: Theme.skinned ? Theme.onBg(Theme.ink, 0.6) : Theme.tint(0.5)
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 10; letterSpacing: 1 }
                             }
                             Rectangle {   // feed LED, blinking on every sample
                                 Layout.alignment: Qt.AlignTop
@@ -390,7 +396,7 @@ ApplicationWindow {
                                         width: parent.width - 2; height: parent.height - 2
                                         radius: Theme.pillRadius
                                         color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.14) : Theme.coral
-                                        border { width: Theme.dark ? 1 : 2; color: Theme.dark ? Theme.phosphor : Theme.charcoal }
+                                        border { width: Theme.line; color: Theme.skinned ? Theme.border : Theme.ink }
                                     }
                                 }
 
@@ -421,7 +427,7 @@ ApplicationWindow {
                                                     anchors.centerIn: parent
                                                     text: (tabItem.index + 1) + " " + tabItem.modelData.label
                                                     color: tabItem.current ? Theme.ink : Theme.tint(0.7)
-                                                    font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 1.2 }
+                                                    font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true; letterSpacing: 1.2 }
                                                 }
                                             }
                                             MouseArea {
@@ -470,18 +476,19 @@ ApplicationWindow {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 10
-                            Rectangle { height: 1; Layout.fillWidth: true; Layout.maximumWidth: 18; color: Theme.tint(0.4) }
+                            Rectangle { height: 1; Layout.fillWidth: true; Layout.maximumWidth: 18; color: Theme.skinned ? Theme.onBg(Theme.ink, 0.45) : Theme.tint(0.4) }
                             Text {
                                 Layout.fillWidth: true
-                                text: win.status || (Theme.quips.nominal || "ALL SYSTEMS MOSTLY HARMLESS.") + " CTRL+1-7 TABS, CTRL+T THEME."
-                                color: win.status ? (win.statusOk ? Theme.cool : Theme.alert) : Theme.tint(0.5)
+                                text: win.status || (Theme.quips.nominal || Theme.lex("statusLine", "ALL SYSTEMS MOSTLY HARMLESS.", "ALL SYSTEMS NOMINAL.")) + " CTRL+1-7 TABS, CTRL+T THEME."
+                                color: win.status ? Theme.onBg(win.statusOk ? Theme.cool : Theme.alert)
+                                                  : Theme.skinned ? Theme.onBg(Theme.ink, 0.65) : Theme.tint(0.5)
                                 elide: Text.ElideRight
-                                font { family: Theme.mono; pixelSize: 11; bold: win.status !== "" }
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: win.status !== "" }
                             }
                             Text {
                                 id: clock
-                                color: Theme.tint(0.5)
-                                font { family: Theme.mono; pixelSize: 11 }
+                                color: Theme.skinned ? Theme.onBg(Theme.ink, 0.65) : Theme.tint(0.5)
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
                                 text: Qt.formatTime(new Date(), "HH:mm:ss")
                                 Timer { interval: 1000; repeat: true; running: true
                                         onTriggered: clock.text = Qt.formatTime(new Date(), "HH:mm:ss") }
@@ -491,7 +498,7 @@ ApplicationWindow {
                 }
             }
 
-            CrtOverlay { anchors.fill: parent; z: 1000 }
+            ThemeEffectsLayer { anchors.fill: parent; z: 1000; framed: !win.maximized }
         }
 
         // ---- the outline: a phosphor rule with a soft inner glow, or a charcoal one ----
@@ -500,34 +507,20 @@ ApplicationWindow {
             visible: Theme.skinned && !win.maximized
             shapeType: win.frameShape; cornerRadius: win.frameRadius
             shadowType: "none"
-            cornerBrackets: Theme.cornerBrackets
-            bracketSize: 14; bracketInset: 5
+            cornerBrackets: false             // ThemeEffectsLayer draws them
         }
         Rectangle {
             anchors.fill: parent
             visible: !Theme.skinned && !win.maximized
             radius: win.frameRadius
             color: "transparent"
-            border { width: Theme.dark ? 1 : 2; color: Theme.dark ? Theme.phosphor : Theme.charcoal }
+            border { width: Theme.line; color: Theme.skinned ? Theme.border : Theme.ink }
             Rectangle {
-                visible: Theme.dark
+                visible: Theme.terminal
                 anchors { fill: parent; margins: 1 }
                 radius: parent.radius - 1
                 color: "transparent"
                 border { width: 3; color: Theme.withAlpha(Theme.phosphor, 0.1) }
-            }
-        }
-        Repeater {   // CRT corner brackets
-            model: Theme.dark && !Theme.skinned && !win.maximized ? 4 : 0
-            Item {
-                required property int index
-                readonly property bool atRight: index % 2 === 1
-                readonly property bool atBottom: index >= 2
-                width: 12; height: 12
-                x: atRight ? frame.width - width - 5 : 5
-                y: atBottom ? frame.height - height - 5 : 5
-                Rectangle { width: parent.width; height: 1.5; y: parent.atBottom ? parent.height - height : 0; color: Theme.amber }
-                Rectangle { width: 1.5; height: parent.height; x: parent.atRight ? parent.width - width : 0; color: Theme.amber }
             }
         }
     }

@@ -25,3 +25,6 @@ GuideSlider 1.0 GuideSlider.qml
 GuideCombo 1.0 GuideCombo.qml
 ThemeShapeContainer 1.0 ThemeShapeContainer.qml
 SustainedLevel 1.0 SustainedLevel.qml
+DynamicMetricGauge 1.0 DynamicMetricGauge.qml
+ThemeEffectsLayer 1.0 ThemeEffectsLayer.qml
+SkinGrid 1.0 SkinGrid.qml

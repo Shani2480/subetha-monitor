@@ -38,22 +38,28 @@ Flickable {
         PropertyAction { value: 0 }
     }
 
-    // The Guide's verdict, or the active skin's line for the same level.
+    // The Guide's verdict, or the active skin's line for the same level
+    // (plain words where the skin has none).
+    function verdict(skinLine, guide, plain) { return skinLine || Theme.lex("", guide, plain) }
     readonly property string entry: {
         var q = Theme.quips
         if (Alerts.cpuTemp === 2 || Alerts.gpuTemp === 2)
-            return q.critical || "WARNING: TEMPERATURES APPROACHING THOSE OF A SMALL SUN. DON'T PANIC."
+            return verdict(q.critical, "WARNING: TEMPERATURES APPROACHING THOSE OF A SMALL SUN. DON'T PANIC.",
+                           "CRITICAL: TEMPERATURES ABOVE THE CRITICAL THRESHOLD.")
         if ((cpu.usage || 0) >= 85)
-            return q.highLoad || "INFINITE IMPROBABILITY DRIVE ENGAGED: EVERY CORE IS THINKING VERY HARD."
+            return verdict(q.highLoad, "INFINITE IMPROBABILITY DRIVE ENGAGED: EVERY CORE IS THINKING VERY HARD.",
+                           "HIGH LOAD: EVERY CORE IS BUSY.")
         if ((mem.percent || 0) >= 90)
-            return q.moderate || "MEMORY NEARLY FULL. LIKE THE GUIDE, IT HAS MANY OMISSIONS BUT IS CHEAPER."
+            return verdict(q.moderate, "MEMORY NEARLY FULL. LIKE THE GUIDE, IT HAS MANY OMISSIONS BUT IS CHEAPER.",
+                           "MEMORY NEARLY FULL.")
         if ((gpu.usage || 0) >= 80)
-            return q.moderate || "THE GRAPHICS ENGINE IS RENDERING THE SUNSETS OF MAGRATHEA."
+            return verdict(q.moderate, "THE GRAPHICS ENGINE IS RENDERING THE SUNSETS OF MAGRATHEA.",
+                           "THE GPU IS UNDER HEAVY LOAD.")
         if (battery.present && !battery.plugged && battery.percent < 20)
-            return "BATTERY LOW. PLEASE FIND A TOWEL AND A WALL SOCKET."
+            return verdict("", "BATTERY LOW. PLEASE FIND A TOWEL AND A WALL SOCKET.", "BATTERY LOW. CONNECT THE CHARGER.")
         if ((cpu.usage || 0) < 10)
-            return q.nominal || "MOSTLY HARMLESS. THE MACHINE IS CONTEMPLATING THE ANSWER."
-        return q.nominal || "ALL SYSTEMS NOMINAL. SHARE AND ENJOY."
+            return verdict(q.nominal, "MOSTLY HARMLESS. THE MACHINE IS CONTEMPLATING THE ANSWER.", "SYSTEM IDLE.")
+        return verdict(q.nominal, "ALL SYSTEMS NOMINAL. SHARE AND ENJOY.", "ALL SYSTEMS NOMINAL.")
     }
 
     function cpuFanDuty() {
@@ -76,13 +82,13 @@ Flickable {
         id: profile
         width: tab.width - 10
         title: "SYSTEM PROFILE  //  " + (tab.specs.host || "").toUpperCase()
-        subtitle: "GUIDE ENTRY: " + tab.entry
+        subtitle: Theme.lex("entryLabel", "GUIDE ENTRY", "STATUS") + ": " + tab.entry
         header: [
             Text {
                 visible: tab.battery.present === true
                 text: "BAT " + Math.round(tab.battery.percent || 0) + "%" + (tab.battery.plugged ? " ⚡" : "")
                 color: Theme.level(tab.battery.percent || 0)
-                font { family: Theme.mono; pixelSize: 14; bold: true }
+                font { family: Theme.mono; features: Theme.figures; pixelSize: 14; bold: true }
             }
         ]
         GridLayout {
@@ -91,7 +97,7 @@ Flickable {
             columnSpacing: 18
             rowSpacing: 6
             ReadoutLabel { Layout.fillWidth: true; Layout.columnSpan: 2; label: "PROCESSOR"; value: (tab.specs.cpuModel || "") + "  " + tab.specs.cores + "C/" + tab.specs.threads + "T" }
-            ReadoutLabel { Layout.fillWidth: true; Layout.columnSpan: 2; label: "GRAPHICS ENGINE"; value: tab.specs.gpuModel || "--" }
+            ReadoutLabel { Layout.fillWidth: true; Layout.columnSpan: 2; label: Theme.lex("gpuLabel", "GRAPHICS ENGINE", "GRAPHICS"); value: tab.specs.gpuModel || "--" }
             ReadoutLabel { Layout.fillWidth: true; label: "MEMORY"; value: Theme.bytes(tab.specs.ramTotal, 0) }
             ReadoutLabel { Layout.fillWidth: true; label: "KERNEL"; value: tab.specs.kernel || "--" }
         }
@@ -110,7 +116,7 @@ Flickable {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.preferredWidth: 1
-            title: "CPU  //  PROCESSING CORE"
+            title: Theme.lex("cpuTitle", "CPU  //  PROCESSING CORE", "CPU")
             subtitle: tab.specs.cpuModel || ""
             alertTracked: true
             alertLevel: Alerts.cpuLevel
@@ -124,7 +130,7 @@ Flickable {
                 Text {
                     text: Theme.pct(tab.cpu.usage)
                     color: Theme.levelInk(Alerts.cpuLoad, Theme.load(tab.cpu.usage || 0))
-                    font { family: Theme.mono; pixelSize: 40; bold: true }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 40; bold: true }
                     transform: Translate { y: Alerts.cpuLoad === 2 ? tab.jitterY : 0 }
                 }
                 ReadoutLabel { Layout.fillWidth: true; label: "TEMP"; value: Theme.temp(tab.cpu.temp); valueColor: Theme.levelInk(Alerts.cpuTemp, Theme.heat(tab.cpu.temp || 0)) }
@@ -144,7 +150,7 @@ Flickable {
             Text {
                 text: "LOAD (FILL) OVER TEMPERATURE (WASH, 30-100°C)"
                 color: Theme.tint(0.45)
-                font { family: Theme.mono; pixelSize: 9; letterSpacing: 0.8 }
+                font { family: Theme.mono; features: Theme.figures; pixelSize: 9; letterSpacing: 0.8 }
             }
             SparklineGraph {
                 Layout.fillWidth: true
@@ -163,13 +169,17 @@ Flickable {
                         width: 14; height: 30
                         Rectangle {
                             anchors { left: parent.left; right: parent.right; top: parent.top; bottom: coreNo.top; bottomMargin: 2 }
-                            color: "transparent"
-                            border.width: 1
+                            // the Guide's outlined cells; a skin's gauge track, rounded with its gauges
+                            color: Theme.skinned ? Theme.gaugeTrack : "transparent"
+                            radius: Theme.skinned && Theme.roundCaps ? width / 2 : 0
+                            border.width: Theme.skinned ? 0 : 1
                             border.color: Theme.tint(0.3)
                             Rectangle {
-                                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 2 }
-                                height: Math.max(0, (parent.height - 4) * Math.min(1, modelData / 100))
-                                color: Theme.load(modelData)
+                                readonly property real inset: Theme.skinned ? 0 : 2
+                                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: inset }
+                                height: Math.max(0, (parent.height - 2 * inset) * Math.min(1, modelData / 100))
+                                radius: parent.radius
+                                color: Theme.gaugeLoad(modelData)
                                 Behavior on height { NumberAnimation { duration: 400 } }
                             }
                         }
@@ -178,7 +188,7 @@ Flickable {
                             anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter }
                             text: index
                             color: Theme.tint(0.45)
-                            font { family: Theme.mono; pixelSize: 7 }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 7 }
                         }
                     }
                 }
@@ -190,7 +200,7 @@ Flickable {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.preferredWidth: 1
-            title: "GPU  //  GRAPHICS ENGINE"
+            title: Theme.lex("gpuTitle", "GPU  //  GRAPHICS ENGINE", "GPU")
             subtitle: tab.gpu.name || "NO GRAPHICS ENGINE DETECTED"
             alertTracked: !!tab.gpu.name
             alertLevel: Alerts.gpuLevel
@@ -204,7 +214,7 @@ Flickable {
                 Text {
                     text: Theme.pct(tab.gpu.usage)
                     color: Theme.levelInk(Alerts.gpuLoad, Theme.load(tab.gpu.usage || 0))
-                    font { family: Theme.mono; pixelSize: 40; bold: true }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 40; bold: true }
                     transform: Translate { y: Alerts.gpuLoad === 2 ? tab.jitterY : 0 }
                 }
                 ReadoutLabel { Layout.fillWidth: true; label: "EDGE"; value: Theme.temp(tab.gpu.temp); valueColor: Theme.levelInk(Alerts.gpuTemp, Theme.heat(tab.gpu.temp || 0)) }
@@ -228,7 +238,7 @@ Flickable {
                     Layout.preferredWidth: 46
                     text: "VRAM"
                     color: Theme.tint(0.6)
-                    font { family: Theme.mono; pixelSize: 10; bold: true }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true }
                 }
                 SegmentBar {
                     Layout.fillWidth: true
@@ -239,13 +249,13 @@ Flickable {
                 Text {
                     text: tab.gpu.vramTotal > 0 ? Theme.bytes(tab.gpu.vramUsed, 1) + " / " + Theme.bytes(tab.gpu.vramTotal, 0) : "--"
                     color: Theme.ink
-                    font { family: Theme.mono; pixelSize: 10; bold: true }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true }
                 }
             }
             Text {
                 text: "MEMORY CONTROLLER " + Theme.pct(tab.gpu.memUsage) + (tab.gpu.memTemp > 0 ? "  ·  VRAM " + Theme.temp(tab.gpu.memTemp) : "")
                 color: Theme.tint(0.55)
-                font { family: Theme.mono; pixelSize: 10 }
+                font { family: Theme.mono; features: Theme.figures; pixelSize: 10 }
             }
             SparklineGraph {
                 Layout.fillWidth: true
@@ -261,7 +271,7 @@ Flickable {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.preferredWidth: 1
-            title: "MEMORY  //  CORE STORE"
+            title: Theme.lex("memoryTitle", "MEMORY  //  CORE STORE", "MEMORY")
             subtitle: Theme.bytes(tab.mem.used, 1) + " OF " + Theme.bytes(tab.mem.total, 0) + " IN USE"
             alertTracked: true
             alertLevel: Alerts.ram
@@ -274,7 +284,7 @@ Flickable {
                 Text {
                     text: Theme.pct(tab.mem.percent)
                     color: Theme.levelInk(Alerts.ram, Theme.load(tab.mem.percent || 0))
-                    font { family: Theme.mono; pixelSize: 40; bold: true }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 40; bold: true }
                     transform: Translate { y: Alerts.ram === 2 ? tab.jitterY : 0 }
                 }
                 ReadoutLabel { Layout.fillWidth: true; label: "AVAILABLE"; value: Theme.bytes(tab.mem.available, 1) }
@@ -293,7 +303,7 @@ Flickable {
                     Layout.preferredWidth: 46
                     text: "SWAP"
                     color: Theme.tint(0.6)
-                    font { family: Theme.mono; pixelSize: 10; bold: true }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true }
                 }
                 SegmentBar {
                     Layout.fillWidth: true
@@ -303,7 +313,7 @@ Flickable {
                 Text {
                     text: tab.mem.swapTotal > 0 ? Theme.bytes(tab.mem.swapUsed, 1) + " / " + Theme.bytes(tab.mem.swapTotal, 0) : "NONE"
                     color: Theme.ink
-                    font { family: Theme.mono; pixelSize: 10; bold: true }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true }
                 }
             }
             SparklineGraph {
@@ -320,7 +330,7 @@ Flickable {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.preferredWidth: 1
-            title: "COOLING ARRAYS"
+            title: Theme.lex("coolingTitle", "COOLING ARRAYS", "COOLING")
             subtitle: tab.fans.length ? tab.fans.length + " FAN" + (tab.fans.length > 1 ? "S" : "") + " REPORTING" : "NO FAN TELEMETRY"
 
             Repeater {
@@ -347,12 +357,12 @@ Flickable {
                                 Layout.fillWidth: true
                                 text: fanRow.modelData.label
                                 color: Theme.ink
-                                font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 0.8 }
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true; letterSpacing: 0.8 }
                             }
                             Text {
                                 text: Theme.rpm(fanRow.modelData.rpm)
                                 color: Theme.ink
-                                font { family: Theme.mono; pixelSize: 16; bold: true }
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 16; bold: true }
                             }
                         }
                         SegmentBar {
@@ -378,7 +388,7 @@ Flickable {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.preferredWidth: 1
-            title: "SUB-ETHA NETWORK"
+            title: Theme.lex("networkTitle", "SUB-ETHA NETWORK", "NETWORK")
             subtitle: tab.net.iface ? (tab.net.iface + "  ·  " + (tab.net.kind || "").toUpperCase()).toUpperCase() : "NO ACTIVE LINK"
 
             RowLayout {
@@ -420,7 +430,7 @@ Flickable {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.preferredWidth: 1
-            title: "DATA BANKS"
+            title: Theme.lex("storageTitle", "DATA BANKS", "STORAGE")
             subtitle: "READ " + Theme.rate(tab.t.diskRead) + "  ·  WRITE " + Theme.rate(tab.t.diskWrite)
             alertTracked: true
             alertLevel: Alerts.disks
@@ -441,12 +451,12 @@ Flickable {
                             text: diskRow.modelData.mount + "  [" + diskRow.modelData.fstype + "]"
                             color: diskRow.critical ? Theme.critColor : Theme.ink
                             elide: Text.ElideMiddle
-                            font { family: Theme.mono; pixelSize: 11; bold: true }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
                         }
                         Text {
                             text: Theme.bytes(diskRow.modelData.used, 0) + " / " + Theme.bytes(diskRow.modelData.total, 0)
                             color: Theme.tint(0.7)
-                            font { family: Theme.mono; pixelSize: 10 }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 10 }
                         }
                     }
                     SegmentBar {
@@ -458,7 +468,7 @@ Flickable {
                     Text {
                         text: "R " + Theme.rate(diskRow.modelData.read) + "   W " + Theme.rate(diskRow.modelData.write)
                         color: Theme.tint(0.55)
-                        font { family: Theme.mono; pixelSize: 9 }
+                        font { family: Theme.mono; features: Theme.figures; pixelSize: 9 }
                     }
                 }
             }

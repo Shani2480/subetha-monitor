@@ -44,19 +44,20 @@ Item {
         anchors { fill: parent; leftMargin: 22; rightMargin: 0 }
         spacing: 10
 
-        Image {
+        Image {   // the Guide's planet; a skin's own logo follows the name instead
+            visible: !Theme.skinned
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             source: "../../assets/subetha-icon.svg"
             sourceSize: Qt.size(40, 40)
         }
         Text {
-            text: "SUB-ETHA HOST DIAGNOSTICS // ZZ9-CONSOLE"
+            text: Theme.lex("consoleTitle", "SUB-ETHA HOST DIAGNOSTICS // ZZ9-CONSOLE", "HOST DIAGNOSTICS")
             color: Theme.ink
             elide: Text.ElideRight
             Layout.preferredWidth: implicitWidth
             Layout.minimumWidth: 60
-            font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 1.4 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true; letterSpacing: 1.4 }
         }
         DontPanicPill { pixelSize: 9 }
         Image {   // a skin's logo, beside the name
@@ -88,7 +89,7 @@ Item {
             text: Theme.dark ? "DARK / light" : "dark / LIGHT"
             enabled: !Theme.skin || !!Theme.skin.variants || Theme.skin.isDark === null
             pixelSize: 10
-            tone: Theme.dark ? Theme.amber : Theme.coral
+            tone: Theme.accent
             onClicked: bar.toggleTheme()
         }
         Item { implicitWidth: 6 }

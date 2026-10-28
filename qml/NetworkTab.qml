@@ -55,9 +55,9 @@ ColumnLayout {
                 historyData: Theme.norm(tab.nh.tx, tab.peak)
                 strokeColor: Theme.cool
             }
-            Text { x: 4; y: 4; text: "▼ RX"; color: Theme.ink; font { family: Theme.mono; pixelSize: 10; bold: true } }
+            Text { x: 4; y: 4; text: "▼ RX"; color: Theme.ink; font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true } }
             Text { x: 4; anchors.bottom: parent.bottom; anchors.bottomMargin: 4; text: "▲ TX"; color: Theme.cool
-                   font { family: Theme.mono; pixelSize: 10; bold: true } }
+                   font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true } }
         }
     }
 
@@ -69,7 +69,7 @@ ColumnLayout {
         GuideCard {
             Layout.preferredWidth: 420
             Layout.fillHeight: true
-            title: "SUB-ETHA IDENTITY"
+            title: Theme.lex("identityTitle", "SUB-ETHA IDENTITY", "ADDRESSES")
             subtitle: "CLICK AN ADDRESS TO COPY IT"
             CopyableValue { Layout.fillWidth: true; label: "LAN IPv4"; value: tab.net.lan || "" }
             CopyableValue {
@@ -120,22 +120,22 @@ ColumnLayout {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 10
-                            Rectangle { width: 8; height: 8; radius: Theme.dark ? 0 : 4; color: iface.modelData.up ? Theme.high : Theme.tint(0.3) }
+                            Rectangle { width: 8; height: 8; radius: Theme.small(4); color: iface.modelData.up ? Theme.high : Theme.tint(0.3) }
                             Text {
                                 text: iface.modelData.name
                                 color: Theme.ink
-                                font { family: Theme.mono; pixelSize: 13; bold: true }
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 13; bold: true }
                             }
                             Text {
                                 text: "[" + iface.modelData.kind.toUpperCase() + "]" + (iface.modelData.active ? "  DEFAULT ROUTE" : "")
                                 color: iface.modelData.active ? Theme.accent : Theme.tint(0.5)
-                                font { family: Theme.mono; pixelSize: 10; bold: true }
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true }
                             }
                             Item { Layout.fillWidth: true }
                             Text {
                                 text: "▼ " + Theme.rate(iface.modelData.rx) + "   ▲ " + Theme.rate(iface.modelData.tx)
                                 color: Theme.ink
-                                font { family: Theme.mono; pixelSize: 11; bold: true }
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
                             }
                         }
                         Text {
@@ -148,7 +148,7 @@ ColumnLayout {
                                   .filter(s => s).join("  ·  ")
                             color: Theme.tint(0.6)
                             elide: Text.ElideRight
-                            font { family: Theme.mono; pixelSize: 10 }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 10 }
                         }
                     }
                 }

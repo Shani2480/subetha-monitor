@@ -45,7 +45,7 @@ Popup {
             wrapMode: Text.Wrap
             color: Theme.ink
             textFormat: Text.StyledText
-            font { family: Theme.mono; pixelSize: 13 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 13 }
         }
         RowLayout {
             Layout.fillWidth: true
@@ -53,9 +53,9 @@ Popup {
             spacing: 12
             Text {
                 Layout.fillWidth: true
-                text: "DON'T PANIC."
+                text: Theme.lex("confirmNote", "DON'T PANIC.", "THIS CANNOT BE UNDONE.")
                 color: Theme.accent
-                font { family: Theme.mono; pixelSize: 11; bold: true; letterSpacing: 1 }
+                font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true; letterSpacing: 1 }
             }
             GuideButton { text: "CANCEL"; onClicked: dialog.close() }
             GuideButton {

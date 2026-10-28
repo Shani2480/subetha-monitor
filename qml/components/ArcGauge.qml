@@ -33,7 +33,7 @@ Item {
             strokeColor: Theme.tint(Theme.dark ? 0.25 : 0.3)
             strokeWidth: 6
             fillColor: "transparent"
-            capStyle: Theme.dark ? ShapePath.FlatCap : ShapePath.RoundCap
+            capStyle: Theme.roundCaps ? ShapePath.RoundCap : ShapePath.FlatCap
             PathAngleArc { centerX: gauge.c.x; centerY: gauge.c.y; radiusX: gauge.r - 3; radiusY: gauge.r - 3
                            startAngle: gauge.startAngle; sweepAngle: gauge.sweep }
         }
@@ -41,7 +41,7 @@ Item {
             strokeColor: gauge.tone
             strokeWidth: 6
             fillColor: "transparent"
-            capStyle: Theme.dark ? ShapePath.FlatCap : ShapePath.RoundCap
+            capStyle: Theme.roundCaps ? ShapePath.RoundCap : ShapePath.FlatCap
             PathAngleArc { centerX: gauge.c.x; centerY: gauge.c.y; radiusX: gauge.r - 3; radiusY: gauge.r - 3
                            startAngle: gauge.startAngle; sweepAngle: Math.max(0.5, gauge.sweep * gauge.shown) }
         }
@@ -65,13 +65,13 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             text: gauge.mbps >= 100 ? gauge.mbps.toFixed(0) : gauge.mbps.toFixed(1)
             color: Theme.ink
-            font { family: Theme.mono; pixelSize: 18; bold: true }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 18; bold: true }
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: gauge.label + " MB/s"
             color: gauge.tone
-            font { family: Theme.mono; pixelSize: 9; bold: true; letterSpacing: 1 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 9; bold: true; letterSpacing: 1 }
         }
     }
 }

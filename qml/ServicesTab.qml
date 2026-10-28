@@ -55,7 +55,7 @@ ColumnLayout {
             elide: Text.ElideLeft
             text: services.counts.active + " ACTIVE · " + services.counts.failed + " FAILED · " + services.counts.total + " UNITS"
             color: services.counts.failed > 0 ? Theme.alert : Theme.tint(0.6)
-            font { family: Theme.mono; pixelSize: 11; bold: true }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
         }
         GuideButton { text: services.loading ? "READING..." : "REFRESH"; onClicked: services.refresh() }
     }
@@ -82,11 +82,11 @@ ColumnLayout {
                     topPadding: 7; bottomPadding: 7
                     text: modelData.label
                     color: Theme.tint(0.65)
-                    font { family: Theme.mono; pixelSize: 11; bold: true; letterSpacing: 1 }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true; letterSpacing: 1 }
                 }
             }
         }
-        Rectangle { Layout.fillWidth: true; height: Theme.dark ? 1 : 2; color: Theme.tint(Theme.dark ? 0.5 : 1) }
+        Rectangle { Layout.fillWidth: true; height: Theme.line; color: Theme.tint(Theme.dark ? 0.5 : 1) }
 
         ListView {
             id: list
@@ -122,27 +122,27 @@ ColumnLayout {
                         text: row.name
                         elide: Text.ElideMiddle
                         color: Theme.ink
-                        font { family: Theme.mono; pixelSize: 12; bold: true }
+                        font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true }
                     }
                     Text {
                         Layout.preferredWidth: 90
                         leftPadding: 8
                         text: row.load
                         color: row.load === "loaded" ? Theme.tint(0.7) : Theme.mid
-                        font { family: Theme.mono; pixelSize: 11 }
+                        font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
                     }
                     RowLayout {
                         Layout.fillWidth: false
                         Layout.preferredWidth: 162
                         Layout.leftMargin: 8
                         spacing: 6
-                        Rectangle { width: 8; height: 8; radius: Theme.dark ? 0 : 4; color: tab.stateColor(row.active) }
+                        Rectangle { width: 8; height: 8; radius: Theme.small(4); color: tab.stateColor(row.active) }
                         Text {
                             Layout.fillWidth: true
                             text: row.pending ? row.pending.toUpperCase() + "ING..." : row.active + " (" + row.sub + ")"
                             color: row.pending ? Theme.accent : tab.stateColor(row.active)
                             elide: Text.ElideRight
-                            font { family: Theme.mono; pixelSize: 11; bold: true }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
                         }
                     }
                     Text {
@@ -152,7 +152,7 @@ ColumnLayout {
                         text: row.description
                         elide: Text.ElideRight
                         color: Theme.tint(0.75)
-                        font { family: Theme.mono; pixelSize: 11 }
+                        font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
                     }
                     Row {
                         Layout.preferredWidth: 290
@@ -172,7 +172,7 @@ ColumnLayout {
                         GuideButton {
                             text: "RESTART"; pixelSize: 10
                             enabled: !row.pending
-                            tone: Theme.dark ? Theme.amber : Theme.mustard
+                            tone: Theme.mid
                             onClicked: services.control(row.name, "restart")
                         }
                     }
@@ -188,7 +188,7 @@ ColumnLayout {
                 text: services.error ? "THE BUS IS NOT ANSWERING: " + services.error
                     : services.loading ? "QUERYING ORG.FREEDESKTOP.SYSTEMD1..." : "NO UNITS MATCH."
                 color: services.error ? Theme.alert : Theme.tint(0.5)
-                font { family: Theme.mono; pixelSize: 13 }
+                font { family: Theme.mono; features: Theme.figures; pixelSize: 13 }
             }
         }
     }
@@ -200,6 +200,6 @@ ColumnLayout {
             : "USER UNITS RUN IN YOUR OWN SESSION (systemctl --user) AND NEED NO PASSWORD."
         color: Theme.tint(0.5)
         elide: Text.ElideRight
-        font { family: Theme.mono; pixelSize: 10 }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 10 }
     }
 }

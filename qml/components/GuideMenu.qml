@@ -34,7 +34,7 @@ Menu {
             color: item.fore
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
-            font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 0.6 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true; letterSpacing: 0.6 }
         }
         indicator: Text {
             x: 9
@@ -42,7 +42,7 @@ Menu {
             visible: item.radio
             text: item.action && item.action.marked ? "●" : "○"
             color: item.fore
-            font { family: Theme.mono; pixelSize: 10 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 10 }
         }
         arrow: Text {
             x: item.width - width - 9
@@ -50,7 +50,7 @@ Menu {
             visible: item.subMenu !== null
             text: "▸"
             color: item.fore
-            font { family: Theme.mono; pixelSize: 12; bold: true }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true }
         }
         background: Rectangle {
             radius: Theme.pillRadius
@@ -70,9 +70,9 @@ Menu {
         Rectangle {
             id: face
             width: parent.width - 1; height: parent.height - 1
-            radius: Theme.dark ? 3 : 10
+            radius: Theme.skinned ? Theme.pillRadius : Theme.dark ? 3 : 10
             color: Theme.dark ? Theme.crtCard : Theme.cream
-            border { width: Theme.dark ? 1 : 2; color: Theme.dark ? Theme.phosphor : Theme.charcoal }
+            border { width: Theme.line; color: Theme.skinned ? Theme.border : Theme.ink }
         }
     }
 

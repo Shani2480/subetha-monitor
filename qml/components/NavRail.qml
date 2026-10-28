@@ -45,7 +45,7 @@ Item {
     }
     Rectangle {   // the rule between rail and page
         anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
-        width: Theme.dark ? 1 : 2
+        width: Theme.line
         color: Theme.tint(Theme.dark ? 0.35 : 1)
     }
 
@@ -62,16 +62,16 @@ Item {
                 Layout.preferredWidth: 30
                 Layout.preferredHeight: 30
                 Layout.alignment: rail.compact ? Qt.AlignHCenter : Qt.AlignLeft
-                source: "../../assets/subetha-icon.svg"
+                source: Theme.frame && Theme.frame.logo ? Theme.frame.logo : Theme.skinned ? "" : "../../assets/subetha-icon.svg"
                 sourceSize: Qt.size(60, 60)
             }
             Text {
                 visible: !rail.compact
                 Layout.fillWidth: true
-                text: "SUB-ETHA\nDIAGNOSTICS"
+                text: Theme.lex("railTitle", "SUB-ETHA\nDIAGNOSTICS", "SYSTEM\nDIAGNOSTICS")
                 color: Theme.ink
                 lineHeight: 0.95
-                font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 1.6 }
+                font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true; letterSpacing: 1.6 }
             }
         }
 
@@ -95,7 +95,7 @@ Item {
                     width: parent.width - 2; height: parent.height - 2
                     radius: Theme.pillRadius
                     color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.14) : Theme.coral
-                    border { width: Theme.dark ? 1 : 2; color: Theme.dark ? Theme.phosphor : Theme.charcoal }
+                    border { width: Theme.line; color: Theme.skinned ? Theme.border : Theme.ink }
                 }
             }
 
@@ -126,7 +126,7 @@ Item {
                             : entry.current ? "[ " + entry.modelData.label + " ]"
                             : "  " + entry.modelData.label
                         color: entry.current ? Theme.ink : Theme.tint(0.7)
-                        font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 1.1 }
+                        font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true; letterSpacing: 1.1 }
                     }
                     MouseArea {
                         id: area
@@ -150,7 +150,7 @@ Item {
             horizontalAlignment: rail.compact ? Text.AlignHCenter : Text.AlignLeft
             text: rail.compact ? "UP" : "UPTIME"
             color: Theme.tint(0.5)
-            font { family: Theme.mono; pixelSize: 9; bold: true; letterSpacing: 1.4 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 9; bold: true; letterSpacing: 1.4 }
         }
         Text {
             Layout.topMargin: -12
@@ -159,14 +159,14 @@ Item {
             text: rail.compact ? Math.floor(rail.uptime / 86400) + "d" : Theme.duration(rail.uptime)
             color: Theme.ink
             elide: Text.ElideRight
-            font { family: Theme.mono; pixelSize: rail.compact ? 11 : 15; bold: true }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: rail.compact ? 11 : 15; bold: true }
         }
         GuideButton {
             Layout.fillWidth: true
-            text: rail.compact ? (Theme.dark ? "◐" : "◑") : (Theme.dark ? "1981 ▸ 2005" : "2005 ▸ 1981")
+            text: rail.compact ? (Theme.dark ? "◐" : "◑") : (Theme.skinned ? (Theme.dark ? "DARK ▸ LIGHT" : "LIGHT ▸ DARK") : Theme.dark ? "1981 ▸ 2005" : "2005 ▸ 1981")
             brackets: !rail.compact
             pixelSize: 11
-            tone: Theme.dark ? Theme.amber : Theme.coral
+            tone: Theme.accent
             onClicked: rail.toggleTheme()
         }
         GuideButton {

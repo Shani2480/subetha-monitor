@@ -42,7 +42,7 @@ Item {
             anchors.centerIn: parent
             text: pip.level === 1 ? "[WARN]" : pip.figure ? "[CRITICAL: " + pip.figure + "]" : "[CRITICAL]"
             color: Theme.dark ? Theme.bg : "#FFFFFF"
-            font { family: Theme.mono; pixelSize: 10; bold: true; letterSpacing: 0.4 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true; letterSpacing: 0.4 }
         }
     }
 }

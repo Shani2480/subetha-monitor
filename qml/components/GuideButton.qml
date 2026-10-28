@@ -48,7 +48,7 @@ Item {
         // Opaque on the film pages, or the shadow would show through it.
         color: Theme.skinned ? "transparent" : btn.hot ? btn.tone : Theme.dark ? "transparent"
              : btn.plain ? Theme.cream : Qt.tint(Theme.cream, Theme.withAlpha(btn.tone, 0.3))
-        border.width: Theme.skinned ? 0 : Theme.dark ? 1 : 2
+        border.width: Theme.skinned ? 0 : Theme.line
         border.color: Theme.dark ? btn.tone : Theme.charcoal
         Behavior on color { ColorAnimation { duration: 90 } }
         Text {
@@ -57,7 +57,7 @@ Item {
             text: btn.brackets ? "[ " + btn.text + " ]" : btn.text
             color: Theme.skinned ? (btn.hot ? Theme.bg : btn.plain ? Theme.ink : btn.tone)
                  : btn.hot ? (Theme.dark ? Theme.bg : (btn.plain ? Theme.cream : Theme.charcoal)) : (Theme.dark ? btn.tone : Theme.charcoal)
-            font { family: Theme.mono; pixelSize: btn.pixelSize; bold: true; letterSpacing: 0.8 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: btn.pixelSize; bold: true; letterSpacing: 0.8 }
         }
     }
     MouseArea {

@@ -17,7 +17,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: (check.checked ? "[x] " : "[ ] ") + check.text
         color: area.containsMouse ? Theme.accent : Theme.ink
-        font { family: Theme.mono; pixelSize: 12; bold: true; letterSpacing: 0.6 }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true; letterSpacing: 0.6 }
     }
     MouseArea {
         id: area

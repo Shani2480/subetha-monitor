@@ -17,16 +17,16 @@ Slider {
         height: 6
         Rectangle {
             anchors.fill: parent
-            radius: Theme.dark ? 0 : 3
+            radius: Theme.small(3)
             color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.08) : Theme.cream
-            border { width: Theme.dark ? 1 : 2; color: Theme.dark ? Theme.tint(0.4) : Theme.charcoal }
+            border { width: Theme.line; color: Theme.dark ? Theme.tint(0.4) : Theme.charcoal }
         }
         Rectangle {
             width: slider.visualPosition * parent.width
             height: parent.height
-            radius: Theme.dark ? 0 : 3
+            radius: Theme.small(3)
             color: Theme.dark ? Theme.phosphor : Theme.coral
-            border { width: Theme.dark ? 0 : 2; color: Theme.charcoal }
+            border { width: Theme.skinned ? 0 : Theme.dark ? 0 : 2; color: Theme.charcoal }
         }
     }
     handle: Item {
@@ -42,9 +42,9 @@ Slider {
             x: slider.pressed && Theme.flatShadow ? 2 : 0
             y: x
             width: 14; height: 14
-            radius: Theme.dark ? 1 : 7
+            radius: Theme.skinned ? Theme.small(7) : Theme.dark ? 1 : 7
             color: Theme.dark ? (slider.pressed || slider.hovered ? Theme.amber : Theme.bg) : Theme.mustard
-            border { width: 2; color: Theme.dark ? Theme.amber : Theme.charcoal }
+            border { width: Theme.skinned ? Theme.line : 2; color: Theme.skinned ? Theme.border : Theme.dark ? Theme.amber : Theme.charcoal }
         }
     }
 }

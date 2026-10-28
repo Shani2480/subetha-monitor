@@ -47,19 +47,19 @@ Flickable {
                         width: fsText.implicitWidth + 14; height: fsText.implicitHeight + 6
                         radius: height / 2
                         color: Theme.dark ? "transparent" : Theme.teal
-                        border.width: Theme.dark ? 1 : 2
+                        border.width: Theme.line
                         border.color: Theme.dark ? Theme.cool : Theme.charcoal
                         Text { id: fsText; anchors.centerIn: parent; text: drive.modelData.fstype.toUpperCase()
-                               color: Theme.dark ? Theme.cool : Theme.cream; font { family: Theme.mono; pixelSize: 10; bold: true } }
+                               color: Theme.dark ? Theme.cool : Theme.cream; font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true } }
                     },
                     Rectangle {
                         width: kindText.implicitWidth + 14; height: kindText.implicitHeight + 6
                         radius: height / 2
                         color: Theme.dark ? "transparent" : Theme.mustard
-                        border.width: Theme.dark ? 1 : 2
+                        border.width: Theme.line
                         border.color: Theme.dark ? Theme.amber : Theme.charcoal
                         Text { id: kindText; anchors.centerIn: parent; text: drive.modelData.kind.toUpperCase()
-                               color: Theme.dark ? Theme.amber : Theme.charcoal; font { family: Theme.mono; pixelSize: 10; bold: true } }
+                               color: Theme.dark ? Theme.amber : Theme.charcoal; font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true } }
                     }
                 ]
 
@@ -74,7 +74,7 @@ Flickable {
                             Text {
                                 text: Theme.pct(drive.modelData.percent)
                                 color: Theme.levelInk(drive.level, Theme.load(drive.modelData.percent))
-                                font { family: Theme.mono; pixelSize: 34; bold: true }
+                                font { family: Theme.mono; features: Theme.figures; pixelSize: 34; bold: true }
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true
@@ -83,12 +83,12 @@ Flickable {
                                 Text {
                                     text: Theme.bytes(drive.modelData.used, 1) + " USED"
                                     color: Theme.ink
-                                    font { family: Theme.mono; pixelSize: 13; bold: true }
+                                    font { family: Theme.mono; features: Theme.figures; pixelSize: 13; bold: true }
                                 }
                                 Text {
                                     text: Theme.bytes(drive.modelData.free, 1) + " FREE OF " + Theme.bytes(drive.modelData.total, 1)
                                     color: Theme.level(100 - drive.modelData.percent)
-                                    font { family: Theme.mono; pixelSize: 11; bold: true }
+                                    font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
                                 }
                             }
                         }
@@ -109,7 +109,7 @@ Flickable {
                         Text {
                             text: "I/O HISTORY, SCALE " + Theme.rate(drive.peak) + "  ·  " + drive.modelData.kname
                             color: Theme.tint(0.45)
-                            font { family: Theme.mono; pixelSize: 9 }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 9 }
                         }
                     }
                     ArcGauge {

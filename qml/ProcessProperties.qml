@@ -37,7 +37,7 @@ Popup {
         Layout.fillWidth: true
         Layout.topMargin: 6
         color: Theme.accent
-        font { family: Theme.mono; pixelSize: 11; bold: true; letterSpacing: 1.4 }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true; letterSpacing: 1.4 }
     }
     component Field: RowLayout {
         property string label
@@ -48,7 +48,7 @@ Popup {
             Layout.preferredWidth: 130
             text: parent.label
             color: Theme.tint(0.55)
-            font { family: Theme.mono; pixelSize: 11; bold: true }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
         }
         Text {
             Layout.fillWidth: true
@@ -57,7 +57,7 @@ Popup {
             wrapMode: Text.WrapAnywhere
             maximumLineCount: 3
             elide: Text.ElideRight
-            font { family: Theme.mono; pixelSize: 12 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 12 }
         }
     }
     component PidLink: Text {
@@ -65,7 +65,7 @@ Popup {
         property bool here: false
         text: proc.name + " (" + proc.pid + ")"
         color: here ? Theme.accent : linkArea.containsMouse ? Theme.accent : Theme.ink
-        font { family: Theme.mono; pixelSize: 12; bold: here; underline: !here && linkArea.containsMouse }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: here; underline: !here && linkArea.containsMouse }
         MouseArea {
             id: linkArea
             anchors.fill: parent
@@ -137,7 +137,7 @@ Popup {
                             required property var modelData
                             spacing: 6
                             PidLink { proc: parent.modelData }
-                            Text { text: "▸"; color: Theme.tint(0.5); font { family: Theme.mono; pixelSize: 12 } }
+                            Text { text: "▸"; color: Theme.tint(0.5); font { family: Theme.mono; features: Theme.figures; pixelSize: 12 } }
                         }
                     }
                     PidLink { proc: ({ pid: dialog.pid, name: dialog.info.name || "?" }); here: true }
@@ -145,7 +145,7 @@ Popup {
                 Text {
                     text: (dialog.info.children || []).length ? "CHILDREN (" + dialog.info.children.length + "):" : "NO CHILDREN."
                     color: Theme.tint(0.55)
-                    font { family: Theme.mono; pixelSize: 11; bold: true }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
                 }
                 Flow {
                     Layout.fillWidth: true
@@ -172,21 +172,21 @@ Popup {
                             horizontalAlignment: Text.AlignRight
                             text: Theme.bytes(modelData.rss)
                             color: Theme.ink
-                            font { family: Theme.mono; pixelSize: 11; bold: true }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
                         }
                         Text {
                             Layout.preferredWidth: 90
                             horizontalAlignment: Text.AlignRight
                             text: modelData.size ? Theme.bytes(modelData.size) : ""
                             color: Theme.tint(0.5)
-                            font { family: Theme.mono; pixelSize: 11 }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
                         }
                         Text {
                             Layout.fillWidth: true
                             text: modelData.path
                             elide: Text.ElideMiddle
                             color: Theme.tint(0.8)
-                            font { family: Theme.mono; pixelSize: 11 }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
                         }
                     }
                 }
@@ -206,14 +206,14 @@ Popup {
                             horizontalAlignment: Text.AlignRight
                             text: "fd " + modelData.fd
                             color: Theme.tint(0.55)
-                            font { family: Theme.mono; pixelSize: 11 }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
                         }
                         Text {
                             Layout.fillWidth: true
                             text: modelData.path
                             elide: Text.ElideMiddle
                             color: Theme.ink
-                            font { family: Theme.mono; pixelSize: 11 }
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
                         }
                     }
                 }
@@ -221,7 +221,7 @@ Popup {
                     visible: !(dialog.info.files || []).length && !(dialog.info.denied || []).length
                     text: "NO REGULAR FILES OPEN (SOCKETS AND PIPES ARE NOT LISTED)."
                     color: Theme.tint(0.5)
-                    font { family: Theme.mono; pixelSize: 11 }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
                 }
 
                 Text {
@@ -232,15 +232,15 @@ Popup {
                     text: "THE KERNEL WITHHOLDS " + (dialog.info.denied || []).join(", ").toUpperCase()
                           + " OF ANOTHER USER'S PROCESS. RUN AS ITS OWNER (OR ROOT) TO SEE THEM."
                     color: Theme.mid
-                    font { family: Theme.mono; pixelSize: 11; bold: true }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: true }
                 }
             }
         }
         Text {
             visible: !!dialog.info.gone
-            text: "IT MAY HAVE GONE FOR A TOWEL."
+            text: Theme.lex("processGone", "IT MAY HAVE GONE FOR A TOWEL.", "THE PROCESS HAS EXITED.")
             color: Theme.tint(0.5)
-            font { family: Theme.mono; pixelSize: 13 }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 13 }
         }
     }
 }

@@ -13,7 +13,7 @@ TextField {
     selectionColor: Theme.accent
     selectedTextColor: Theme.bg
     placeholderTextColor: Theme.tint(0.4)
-    font { family: Theme.mono; pixelSize: 13 }
+    font { family: Theme.mono; features: Theme.figures; pixelSize: 13 }
     background: Rectangle {
         radius: Theme.pillRadius
         ThemeShapeContainer {   // a skin's pill shape
@@ -26,18 +26,18 @@ TextField {
             shadowType: "none"
         }
         color: Theme.skinned ? "transparent" : Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.04) : Theme.cream
-        border.width: Theme.skinned ? 0 : field.activeFocus ? 2 : (Theme.dark ? 1 : 2)
+        border.width: Theme.skinned ? 0 : field.activeFocus ? 2 : (Theme.line)
         border.color: field.activeFocus ? Theme.accent : (Theme.dark ? Theme.tint(0.5) : Theme.charcoal)
         Text {
             x: 10
             anchors.verticalCenter: parent.verticalCenter
             text: ">"
             color: Theme.accent
-            font { family: Theme.mono; pixelSize: 13; bold: true }
+            font { family: Theme.mono; features: Theme.figures; pixelSize: 13; bold: true }
         }
     }
     cursorDelegate: Rectangle {
-        width: Theme.dark ? 8 : 2
+        width: Theme.terminal ? 8 : 2
         color: Theme.dark ? Theme.withAlpha(Theme.phosphor, 0.7) : Theme.charcoal
         visible: field.activeFocus && blink.on
         QtObject { id: blink; property bool on: true }

@@ -17,14 +17,14 @@ RowLayout {
         Layout.preferredWidth: 64
         text: row.label
         color: Theme.tint(0.55)
-        font { family: Theme.mono; pixelSize: 10; bold: true; letterSpacing: 1 }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true; letterSpacing: 1 }
     }
     Text {
         Layout.fillWidth: true
         text: row.value || "--"
         color: area.containsMouse && row.copyable ? Theme.accent : Theme.ink
         elide: Text.ElideMiddle
-        font { family: Theme.mono; pixelSize: 13; bold: true }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 13; bold: true }
         MouseArea {
             id: area
             anchors.fill: parent
@@ -38,7 +38,7 @@ RowLayout {
         visible: row.copyable
         text: row.flashing ? "COPIED" : "[COPY]"
         color: row.flashing ? Theme.cool : (copyArea.containsMouse ? Theme.accent : Theme.tint(0.6))
-        font { family: Theme.mono; pixelSize: 10; bold: true }
+        font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true }
         MouseArea {
             id: copyArea
             anchors.fill: parent

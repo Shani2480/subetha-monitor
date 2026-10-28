@@ -63,7 +63,7 @@ Item {
         }
         radius: Theme.outerRadius
         color: Theme.skinned ? "transparent" : Theme.card
-        border.width: Theme.skinned ? 0 : Theme.dark ? 1 : 2
+        border.width: Theme.skinned ? 0 : Theme.line
         border.color: card.borderColor
 
         Rectangle {   // phosphor glow: a soft second rule outside the first
@@ -127,7 +127,7 @@ Item {
                     text: card.subtitle
                     color: Theme.skinned ? Theme.inkSoft : Theme.tint(0.6)
                     elide: Text.ElideRight
-                    font { family: Theme.mono; pixelSize: 11 }
+                    font { family: Theme.mono; features: Theme.figures; pixelSize: 11 }
                 }
             }
             Row { id: headerSlot; spacing: 14; Layout.alignment: Qt.AlignTop | Qt.AlignRight }
