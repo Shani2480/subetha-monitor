@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- The Guide's smiling green planet, ringed, for the tray, title bar and sidebar. -->
+  <defs>
+    <radialGradient id="globe" cx="0.38" cy="0.32" r="0.7">
+      <stop offset="0" stop-color="#8DFF9B"/>
+      <stop offset="0.55" stop-color="#2BD65C"/>
+      <stop offset="1" stop-color="#0B7A33"/>
+    </radialGradient>
+  </defs>
+  <g transform="rotate(-16 32 34)">
+    <!-- the far side of the ring, behind the planet -->
+    <ellipse cx="32" cy="36" rx="29" ry="8" fill="none" stroke="#1E9E48" stroke-width="3.5"/>
+  </g>
+  <circle cx="32" cy="31" r="20" fill="url(#globe)" stroke="#06331A" stroke-width="2.5"/>
+  <!-- continents -->
+  <path d="M19 22c3-4 8-5 10-2s-2 5-5 5-6 1-5-3z" fill="#1A9E47" opacity="0.7"/>
+  <path d="M41 17c4 1 7 5 7 8-3 0-5-2-7-3s-3-4 0-5z" fill="#1A9E47" opacity="0.7"/>
+  <circle cx="44" cy="40" r="2.5" fill="#1A9E47" opacity="0.6"/>
+  <!-- happy closed eyes -->
+  <path d="M22.5 28q3-4.5 6 0M35.5 28q3-4.5 6 0" fill="none" stroke="#06331A" stroke-width="2.4" stroke-linecap="round"/>
+  <!-- grin -->
+  <path d="M22 33q10 13 20 0z" fill="#06331A"/>
+  <path d="M27 38.5q5 3 10 0q-5-2.5-10 0z" fill="#FF6B4A"/>
+  <g transform="rotate(-16 32 34)">
+    <!-- the near side of the ring, in front of the planet -->
+    <path d="M3 36A29 8 0 0 0 61 36" fill="none" stroke="#3CFF7A" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+</svg>

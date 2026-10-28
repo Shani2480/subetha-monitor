@@ -10,10 +10,12 @@ from PySide6.QtCore import (QAbstractListModel, QModelIndex, QObject, QThread,
 class Poller(QObject):
     """Calls `fn` every `interval` ms on a worker thread and emits what it
     returns. While `enabled` is false the timer still ticks but samples
-    nothing, so a hidden tab costs no reads. `poke` samples at once."""
+    nothing, so a hidden tab costs no reads. `poke` samples at once;
+    `retime` changes the interval from any thread."""
 
     result = Signal(object)
     poke = Signal()
+    retime = Signal(int)
 
     def __init__(self, fn, interval):
         super().__init__()
@@ -22,6 +24,7 @@ class Poller(QObject):
         self._timer = None
         self.enabled = True
         self.poke.connect(self.tick)
+        self.retime.connect(self._retime)
 
     @Slot()
     def start(self):
@@ -29,6 +32,12 @@ class Poller(QObject):
         self._timer.timeout.connect(self.tick)
         self._timer.start(self._interval)
         self.tick()
+
+    @Slot(int)
+    def _retime(self, ms):
+        self._interval = ms
+        if self._timer:
+            self._timer.setInterval(ms)
 
     @Slot()
     def tick(self):

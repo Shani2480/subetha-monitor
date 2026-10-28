@@ -2,12 +2,14 @@
 """The Sub-Etha System Monitor: a standalone companion to the Sub-Etha Guide
 widget, in the same two looks (1981 BBC terminal, 2005 film pages).
 
-    subetha-monitor [--tab=overview|processes|services|network|disks]
+    subetha-monitor [--tab=overview|processes|services|network|disks|settings]
 
 One window per session: a second launch hands its --tab to the running
 window over a local socket, raises it and exits, so the widget's diagnostic
-buttons can aim the open monitor at a tab. The theme, last tab and window
-size persist in ~/.config/subetha-monitor.json.
+buttons can aim the open monitor at a tab. While a system tray exists,
+closing the window (by default) hides it to the tray instead of quitting.
+The preferences (theme, tray behaviour, layout, process columns, window
+size) persist in ~/.config/subetha-monitor.json.
 """
 
 import argparse
@@ -15,12 +17,15 @@ import json
 import os
 import signal
 import sys
+import time
 
-from PySide6.QtCore import QObject, Property, QUrl, Signal, Slot
-from PySide6.QtGui import QGuiApplication, QIcon
+from PySide6.QtCore import QObject, Property, QTimer, QUrl, Signal, Slot
+from PySide6.QtGui import QIcon
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
+from PySide6.QtWidgets import QApplication
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -28,30 +33,74 @@ sys.path.insert(0, HERE)
 from backend.process_manager import ProcessManager  # noqa: E402
 from backend.systemd_manager import SystemdManager  # noqa: E402
 from backend.telemetry import Telemetry  # noqa: E402
+from backend.tray import METRICS as TRAY_METRICS, Tray  # noqa: E402
 
 APP_ID = "subetha-monitor"
-TABS = ["overview", "processes", "services", "network", "disks"]
+TABS = ["overview", "processes", "services", "network", "disks", "settings"]
+THEMES = ["dark", "light", "auto"]
+DAY_HOURS = (7, 19)                     # "auto" shows the film pages from 07:00 to 19:00
+INTERVAL_RANGE = (500, 5000)            # telemetry period, ms
 CONFIG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), APP_ID + ".json")
 SOCKET = f"{APP_ID}-{os.getuid()}"
+DEFAULTS = {
+    "theme": "dark", "tab": "overview", "width": 1280, "height": 860,
+    "closeToTray": True, "minimizeToTray": False, "startMinimized": False, "trayTooltip": True,
+    "trayMetric": "planet", "trayStyle": "number",
+    "tabPosition": "left", "sidebarCollapsed": False, "interval": 1500, "startupTab": "last",
+    "columnWidths": {}, "columnOrder": [],
+}
 
 
 class Settings(QObject):
     """The persisted preferences, written back on every change."""
 
     themeChanged = Signal()
+    darkChanged = Signal()
     tabChanged = Signal()
-    tabRequested = Signal(str)           # a later launch asked for a tab
+    closeToTrayChanged = Signal()
+    minimizeToTrayChanged = Signal()
+    startMinimizedChanged = Signal()
+    trayTooltipChanged = Signal()
+    trayMetricChanged = Signal()
+    trayStyleChanged = Signal()
+    tabPositionChanged = Signal()
+    sidebarCollapsedChanged = Signal()
+    intervalChanged = Signal()
+    startupTabChanged = Signal()
+    columnWidthsChanged = Signal()
+    columnOrderChanged = Signal()
+    tabRequested = Signal(str)           # a later launch, or the tray, asked for a tab
 
     def __init__(self, tab=None, parent=None):
         super().__init__(parent)
-        self._cfg = {"theme": "dark", "tab": "overview", "width": 1280, "height": 860}
+        self._cfg = dict(DEFAULTS)
         try:
             with open(CONFIG) as f:
                 self._cfg.update(json.load(f))
         except (OSError, ValueError):
             pass
-        if tab:
-            self._cfg["tab"] = tab
+        start = self._cfg["startupTab"]
+        self._start_tab = tab or (start if start in TABS else self._cfg["tab"])
+        if self._start_tab not in TABS:
+            self._start_tab = "overview"
+        # "auto" follows the sun, roughly: the film pages by day, the terminal by night.
+        self._dark = self._resolve_dark()
+        self._clock = QTimer(self)
+        self._clock.timeout.connect(self._update_dark)
+        self._clock.start(60_000)
+        self.themeChanged.connect(self._update_dark)
+
+    def _resolve_dark(self):
+        theme = self._cfg["theme"]
+        if theme == "auto":
+            return not DAY_HOURS[0] <= time.localtime().tm_hour < DAY_HOURS[1]
+        return theme != "light"
+
+    def _update_dark(self):
+        dark = self._resolve_dark()
+        if dark != self._dark:
+            self._dark = dark
+            self.darkChanged.emit()
 
     def _save(self):
         try:
@@ -63,17 +112,55 @@ class Settings(QObject):
         except OSError as e:
             print(f"subetha-monitor: cannot save {CONFIG}: {e}", file=sys.stderr)
 
-    def _setter(key, signal_name):
+    def _setter(key, signal_name, check=None):
         def set_(self, value):
+            if check and not check(value):
+                return
             if self._cfg.get(key) != value:
                 self._cfg[key] = value
                 self._save()
                 getattr(self, signal_name).emit()
         return set_
 
-    theme = Property(str, lambda self: self._cfg["theme"], _setter("theme", "themeChanged"), notify=themeChanged)
+    theme = Property(str, lambda self: self._cfg["theme"] if self._cfg["theme"] in THEMES else "dark",
+                     _setter("theme", "themeChanged", lambda v: v in THEMES), notify=themeChanged)
     tab = Property(str, lambda self: self._cfg["tab"] if self._cfg["tab"] in TABS else "overview",
-                   _setter("tab", "tabChanged"), notify=tabChanged)
+                   _setter("tab", "tabChanged", lambda v: v in TABS), notify=tabChanged)
+    closeToTray = Property(bool, lambda self: bool(self._cfg["closeToTray"]),
+                           _setter("closeToTray", "closeToTrayChanged"), notify=closeToTrayChanged)
+    minimizeToTray = Property(bool, lambda self: bool(self._cfg["minimizeToTray"]),
+                              _setter("minimizeToTray", "minimizeToTrayChanged"), notify=minimizeToTrayChanged)
+    startMinimized = Property(bool, lambda self: bool(self._cfg["startMinimized"]),
+                              _setter("startMinimized", "startMinimizedChanged"), notify=startMinimizedChanged)
+    trayTooltip = Property(bool, lambda self: bool(self._cfg["trayTooltip"]),
+                           _setter("trayTooltip", "trayTooltipChanged"), notify=trayTooltipChanged)
+    # What the tray icon shows: "planet" or a key of backend.tray.METRICS,
+    # as a "number" or a "graph".
+    trayMetric = Property(str, lambda self: self._cfg["trayMetric"] if self._cfg["trayMetric"] in TRAY_METRICS else "planet",
+                          _setter("trayMetric", "trayMetricChanged", lambda v: v == "planet" or v in TRAY_METRICS),
+                          notify=trayMetricChanged)
+    trayStyle = Property(str, lambda self: "graph" if self._cfg["trayStyle"] == "graph" else "number",
+                         _setter("trayStyle", "trayStyleChanged", lambda v: v in ("number", "graph")),
+                         notify=trayStyleChanged)
+    tabPosition = Property(str, lambda self: "top" if self._cfg["tabPosition"] == "top" else "left",
+                           _setter("tabPosition", "tabPositionChanged", lambda v: v in ("top", "left")),
+                           notify=tabPositionChanged)
+    sidebarCollapsed = Property(bool, lambda self: bool(self._cfg["sidebarCollapsed"]),
+                                _setter("sidebarCollapsed", "sidebarCollapsedChanged"), notify=sidebarCollapsedChanged)
+    interval = Property(int, lambda self: min(INTERVAL_RANGE[1], max(INTERVAL_RANGE[0], int(self._cfg["interval"]))),
+                        _setter("interval", "intervalChanged", lambda v: INTERVAL_RANGE[0] <= v <= INTERVAL_RANGE[1]),
+                        notify=intervalChanged)
+    startupTab = Property(str, lambda self: self._cfg["startupTab"],
+                          _setter("startupTab", "startupTabChanged", lambda v: v == "last" or v in TABS),
+                          notify=startupTabChanged)
+    # Process table columns: {key: width px}, and the keys in display order.
+    columnWidths = Property("QVariantMap", lambda self: self._cfg["columnWidths"],
+                            _setter("columnWidths", "columnWidthsChanged"), notify=columnWidthsChanged)
+    columnOrder = Property("QVariantList", lambda self: self._cfg["columnOrder"],
+                           _setter("columnOrder", "columnOrderChanged"), notify=columnOrderChanged)
+    # The theme in force: `theme`, with "auto" resolved by the clock.
+    dark = Property(bool, lambda self: self._dark, notify=darkChanged)
+    startTab = Property(str, lambda self: self._start_tab, constant=True)
     # The size is read once at start-up and written back on close.
     width = Property(int, lambda self: int(self._cfg["width"]), constant=True)
     height = Property(int, lambda self: int(self._cfg["height"]), constant=True)
@@ -120,7 +207,7 @@ def listen(settings):
 def parse_args(argv):
     p = argparse.ArgumentParser(prog=APP_ID, description="The Sub-Etha System Monitor. Don't Panic.")
     p.add_argument("--tab", choices=TABS, help="open on this tab")
-    p.add_argument("--theme", choices=["dark", "light"], help="switch to this theme (it is remembered)")
+    p.add_argument("--theme", choices=THEMES, help="switch to this theme (it is remembered)")
     args, _qt = p.parse_known_args(argv[1:])
     return args
 
@@ -129,13 +216,17 @@ def build(argv):
     """The application, its engine and backends; the caller runs exec()."""
     args = parse_args(argv)
     QQuickStyle.setStyle("Basic")              # flat controls the themes can repaint
-    app = QGuiApplication(argv)
+    QQuickWindow.setDefaultAlphaBuffer(True)   # the frameless window has round corners
+    # QApplication rather than QGuiApplication: the tray's menu is a widget.
+    app = QApplication(argv)
     app.setApplicationName(APP_ID)
     app.setApplicationDisplayName("Sub-Etha System Monitor")
     app.setOrganizationName("subetha")
     app.setDesktopFileName(APP_ID)
     icon = os.path.join(HERE, "subetha-monitor.png")
     app.setWindowIcon(QIcon.fromTheme(APP_ID, QIcon(icon)))
+    # The window decides when closing quits (see MainAppWindow's onClosing).
+    app.setQuitOnLastWindowClosed(False)
 
     if hand_off(args.tab or ""):
         return app, None, None
@@ -147,6 +238,13 @@ def build(argv):
     processes = ProcessManager(app)
     services = SystemdManager(app)
     app._server = listen(settings)
+    tray = Tray(app, settings, telemetry, os.path.join(HERE, "assets", "subetha-icon.svg"))
+
+    def retime():
+        telemetry.setInterval(settings.interval)
+        processes.setInterval(settings.interval)
+    settings.intervalChanged.connect(retime)
+    retime()
 
     def shutdown():
         telemetry.stop()
@@ -159,10 +257,11 @@ def build(argv):
     ctx.setContextProperty("telemetry", telemetry)
     ctx.setContextProperty("processes", processes)
     ctx.setContextProperty("services", services)
+    ctx.setContextProperty("tray", tray)
     engine.load(QUrl.fromLocalFile(os.path.join(HERE, "qml", "MainAppWindow.qml")))
     if not engine.rootObjects():
         sys.exit(1)
-    return app, engine, (settings, telemetry, processes, services)
+    return app, engine, (settings, telemetry, processes, services, tray)
 
 
 def main():

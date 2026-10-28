@@ -14,3 +14,9 @@ ReadoutLabel 1.0 ReadoutLabel.qml
 SegmentBar 1.0 SegmentBar.qml
 SparklineGraph 1.0 SparklineGraph.qml
 GuideScrollBar 1.0 GuideScrollBar.qml
+SubEthaTitleBar 1.0 SubEthaTitleBar.qml
+NavRail 1.0 NavRail.qml
+GuideMenu 1.0 GuideMenu.qml
+GuideMenuSeparator 1.0 GuideMenuSeparator.qml
+GuideSlider 1.0 GuideSlider.qml
+GuideCombo 1.0 GuideCombo.qml

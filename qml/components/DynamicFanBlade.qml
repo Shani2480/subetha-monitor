@@ -1,40 +1,40 @@
 import QtQuick
 import QtQuick.Shapes
 
-// A vector fan whose blades turn at the fan's real speed: one revolution per
-// 60000 / RPM ms (100 ms at 600 RPM, 30 ms at 2000 RPM and beyond, the fastest
-// it goes). Rather than restarting a fixed-duration animation whenever the RPM
+// A vector fan whose blades turn in proportion to the fan's duty (its share
+// of full speed): still at 0, `maxTurns` revolutions a second at 100 %.
+// Turning at the literal RPM cannot be drawn: at 60 frames a second a
+// four-bladed fan looks the same every 90°, so anything past ~45° a frame
+// (2.5 turns a second is 15°) aliases into a stutter or a backwards crawl.
+// Rather than restarting a fixed-duration animation whenever the reading
 // changes (a visible jump), a FrameAnimation integrates the angle every frame
-// from a displayed speed that eases towards the reading, so a fan spins up and
-// coasts down with some inertia. Fast enough that the blades would strobe,
-// trailing ghost copies and a hub disc smear them into a motion blur.
+// from a displayed speed that eases towards the reading, so a fan spins up
+// and coasts down with some inertia. From half speed up, trailing ghost
+// copies and a hub disc add a motion blur.
 Item {
     id: root
 
-    property int rpm: 0
+    property real duty: 0                  // 0..1, the fan's share of full speed
+    property real maxTurns: 2.5            // revolutions a second drawn at 100 %
     property color strokeColor: "#00FF66"
     property real inertia: 0.6             // seconds to close ~63% of a speed change
     implicitWidth: 32
     implicitHeight: 32
 
-    readonly property bool isSpinning: rpm > 0
-    // Milliseconds per full turn at the current reading, floored at 30 ms.
-    readonly property int animDuration: isSpinning ? Math.max(30, Math.round(60000 / Math.max(rpm, 1))) : 0
-    readonly property real targetRpm: isSpinning ? 60000 / animDuration : 0
-
-    property real shownRpm: 0                 // eased speed actually drawn
+    readonly property real target: Math.max(0, Math.min(1, duty))
+    property real shownDuty: 0                // eased duty actually drawn
     property real angle: 0
-    // 0 below ~400 RPM, 1 from ~1600 RPM: how much motion blur to draw.
-    readonly property real blur: Math.max(0, Math.min(1, (shownRpm - 400) / 1200))
+    // 0 below half speed, 1 at full: how much motion blur to draw.
+    readonly property real blur: Math.max(0, Math.min(1, (shownDuty - 0.5) / 0.5))
 
     FrameAnimation {
-        running: root.visible && (root.isSpinning || root.shownRpm > 0.5)
+        running: root.visible && (root.target > 0 || root.shownDuty > 0.001)
         onTriggered: {
             var dt = Math.min(0.1, frameTime)
             var k = 1 - Math.exp(-dt / Math.max(0.01, root.inertia))
-            root.shownRpm += (root.targetRpm - root.shownRpm) * k
-            if (!root.isSpinning && root.shownRpm < 0.5) root.shownRpm = 0
-            root.angle = (root.angle + root.shownRpm * 6 * dt) % 360   // RPM * 360° / 60 s
+            root.shownDuty += (root.target - root.shownDuty) * k
+            if (root.target === 0 && root.shownDuty < 0.001) root.shownDuty = 0
+            root.angle = (root.angle + root.shownDuty * root.maxTurns * 360 * dt) % 360
         }
     }
 

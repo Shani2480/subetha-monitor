@@ -1,11 +1,11 @@
 """Hardware telemetry: CPU, memory, GPU, fans, network, storage and battery.
 
 Everything is read from /proc and /sys (through psutil where it reads the
-same files), on the poller's thread, every 1.5 s. A sample is one plain dict
-handed to QML as a QVariantMap; rolling histories ride along in it. Static
-facts (models, kernel, RAM size) are read once into `specs`. The public WAN
-address is fetched from api.ipify.org on the GUI thread when the active
-connection changes.
+same files), on the poller's thread, every 1.5 s unless the settings say
+otherwise. A sample is one plain dict handed to QML as a QVariantMap; rolling
+histories ride along in it. Static facts (models, kernel, RAM size) are read
+once into `specs`. The public WAN address is fetched from api.ipify.org on
+the GUI thread when the active connection changes.
 """
 
 import glob
@@ -27,6 +27,7 @@ from .common import Poller, start_poller
 
 INTERVAL_MS = 1500
 HISTORY = 24          # overview sparklines
+FAN_FULL_RPM = 6000   # a fan's full speed when the kernel gives no fan*_max
 NET_HISTORY = 60      # network tab curves
 SECTOR = 512          # /proc/diskstats counts 512-byte sectors on every device
 
@@ -207,6 +208,7 @@ class Collector:
         self.hist = {k: deque(maxlen=HISTORY) for k in ("cpu", "gpu", "ram", "rx", "tx", "diskRead", "diskWrite")}
         self.net_hist = {k: deque(maxlen=NET_HISTORY) for k in ("rx", "tx")}
         self.fan_hist = {}
+        self.fan_peak = {}
         self.disk_hist = {}
         self.ticks = 0
         psutil.cpu_percent(percpu=True)   # prime: the first real call measures from here
@@ -331,7 +333,12 @@ class Collector:
             rpm = _read_int(f["path"])
             if rpm is None:
                 continue
-            out.append({"label": f["label"], "chip": f["chip"], "rpm": rpm, "max": f["max"]})
+            # Duty: the share of full speed. Without a reported maximum, full
+            # is FAN_FULL_RPM, or the fastest this fan has been seen to go.
+            peak = self.fan_peak[f["label"]] = max(rpm, self.fan_peak.get(f["label"], 0))
+            full = f["max"] if f["max"] > 0 else max(FAN_FULL_RPM, peak)
+            out.append({"label": f["label"], "chip": f["chip"], "rpm": rpm, "max": f["max"],
+                        "full": full, "duty": min(1.0, rpm / full)})
             self.fan_hist.setdefault(f["label"], deque(maxlen=HISTORY)).append(rpm)
         return out
 
@@ -439,6 +446,7 @@ class Telemetry(QObject):
 
     dataChanged = Signal()
     wanChanged = Signal()
+    intervalChanged = Signal()
     copied = Signal(str)
 
     def __init__(self, parent=None):
@@ -450,6 +458,7 @@ class Telemetry(QObject):
         self._wan_state = "resolving"
         self._wan_key = None
         self._nam = QNetworkAccessManager(self)
+        self._interval = INTERVAL_MS
 
         self._poller = Poller(self._collector.sample, INTERVAL_MS)
         self._poller.result.connect(self._on_sample)
@@ -458,6 +467,12 @@ class Telemetry(QObject):
     def stop(self):
         self._thread.quit()
         self._thread.wait(3000)
+
+    def setInterval(self, ms):
+        if ms != self._interval:
+            self._interval = ms
+            self._poller.retime.emit(ms)
+            self.intervalChanged.emit()
 
     def _on_sample(self, sample):
         self._data = sample
@@ -496,4 +511,4 @@ class Telemetry(QObject):
     specs = Property("QVariantMap", lambda self: self._specs, constant=True)
     wanIp = Property(str, lambda self: self._wan, notify=wanChanged)
     wanState = Property(str, lambda self: self._wan_state, notify=wanChanged)
-    interval = Property(int, lambda self: INTERVAL_MS, constant=True)
+    interval = Property(int, lambda self: self._interval, notify=intervalChanged)

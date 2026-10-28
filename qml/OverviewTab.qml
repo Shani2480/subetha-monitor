@@ -37,13 +37,13 @@ Flickable {
         return "ALL SYSTEMS NOMINAL. SHARE AND ENJOY."
     }
 
-    function cpuFanRpm() {
+    function cpuFanDuty() {
         var f = fans.find(f => /CPU/.test(f.label)) || fans[0]
-        return f ? f.rpm : 0
+        return f ? f.duty : 0
     }
-    function gpuFanRpm() {
+    function gpuFanDuty() {
         var f = fans.find(f => /GPU/.test(f.label) || f.chip === "amdgpu")
-        return f ? f.rpm : 0
+        return f ? f.duty : 0
     }
 
     contentWidth: width
@@ -93,7 +93,7 @@ Flickable {
             Layout.preferredWidth: 1
             title: "CPU  //  PROCESSING CORE"
             subtitle: tab.specs.cpuModel || ""
-            header: [ DynamicFanBlade { width: 28; height: 28; rpm: tab.cpuFanRpm(); strokeColor: Theme.ink } ]
+            header: [ DynamicFanBlade { width: 28; height: 28; duty: tab.cpuFanDuty(); strokeColor: Theme.ink } ]
 
             RowLayout {
                 Layout.fillWidth: true
@@ -166,7 +166,7 @@ Flickable {
             Layout.preferredWidth: 1
             title: "GPU  //  GRAPHICS ENGINE"
             subtitle: tab.gpu.name || "NO GRAPHICS ENGINE DETECTED"
-            header: [ DynamicFanBlade { width: 28; height: 28; rpm: tab.gpuFanRpm(); strokeColor: Theme.ink } ]
+            header: [ DynamicFanBlade { width: 28; height: 28; duty: tab.gpuFanDuty(); strokeColor: Theme.ink } ]
 
             RowLayout {
                 Layout.fillWidth: true
@@ -290,14 +290,14 @@ Flickable {
                 RowLayout {
                     id: fanRow
                     required property var modelData
-                    readonly property int full: modelData.max > 0 ? modelData.max : 6000
-                    readonly property real duty: Math.min(1, modelData.rpm / full)
+                    readonly property int full: modelData.full
+                    readonly property real duty: modelData.duty
                     Layout.fillWidth: true
                     spacing: 14
                     DynamicFanBlade {
                         Layout.preferredWidth: 44
                         Layout.preferredHeight: 44
-                        rpm: fanRow.modelData.rpm
+                        duty: fanRow.duty
                         strokeColor: Theme.load(fanRow.duty * 100)
                     }
                     ColumnLayout {

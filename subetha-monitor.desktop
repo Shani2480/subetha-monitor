@@ -12,7 +12,7 @@ Keywords=process;task;manager;monitor;systemd;service;sensor;fan;cpu;gpu;network
 StartupNotify=true
 StartupWMClass=subetha-monitor
 SingleMainWindow=true
-Actions=processes;services;network;disks;
+Actions=processes;services;network;disks;settings;
 
 [Desktop Action processes]
 Name=Processes
@@ -29,3 +29,7 @@ Exec=subetha-monitor --tab=network
 [Desktop Action disks]
 Name=Storage
 Exec=subetha-monitor --tab=disks
+
+[Desktop Action settings]
+Name=Settings
+Exec=subetha-monitor --tab=settings
