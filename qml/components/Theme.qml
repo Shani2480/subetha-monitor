@@ -18,15 +18,18 @@ QtObject {
     signal settingsRequested()                   // a Sidebar gadget's gear (GuideCard); MainAppWindow opens Settings
     property bool wantDark: true                 // the settings' light / dark, "auto" resolved
     property var installed: []                   // [{ id, dir, json }] from main.py's `themes`
+    property var hidden: []                      // skin ids kept out of the pickers (themes.hidden)
     property string activeId: "h2g2"             // "h2g2": the Guide's own palette
 
     // (through JSON, so main.py's lists arrive as plain arrays for skins.js's Array.isArray)
     readonly property var skins: installed.map(function (s) {
         try { return Skins.entry(s.id, s.dir, JSON.parse(JSON.stringify(s.json))) } catch (e) { return null }
     }).filter(function (s) { return s })
-    // Every look the title bar and Settings offer: the Guide's own, then each installed skin.
+    // Every look the title bar and Settings offer: the Guide's own, then each
+    // installed skin not hidden (the one in use always, so the picker can show it).
     readonly property var choices: [{ value: "h2g2", label: "H2G2 · SUB-ETHA GUIDE" }].concat(
-        skins.map(function (s) { return { value: s.id, label: s.name.toUpperCase() } }))
+        skins.filter(function (s) { return hidden.indexOf(s.id) < 0 || s.id === activeId })
+             .map(function (s) { return { value: s.id, label: s.name.toUpperCase() } }))
     readonly property var active: skins.find(function (s) { return s.id === activeId }) || null
     readonly property var skin: active ? active.style : null
     readonly property bool skinned: !!skin

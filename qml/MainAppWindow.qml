@@ -121,6 +121,7 @@ ApplicationWindow {
     font.family: Theme.sans
 
     Binding { target: Theme; property: "installed"; value: themes.installed }
+    Binding { target: Theme; property: "hidden"; value: themes.hidden }
 
     Component.onCompleted: {
         Theme.wantDark = settings.dark

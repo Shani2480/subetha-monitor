@@ -9,6 +9,7 @@ import "components"
 // from a preview of each. Every change is saved to settings.configPath at once.
 Flickable {
     id: tab
+    property string removeError: ""     // the theme manager's last failed REMOVE
 
     property bool shown: false
     readonly property var startupTabs: [{ value: "last", label: "LAST OPENED" }].concat(
@@ -342,6 +343,70 @@ Flickable {
             Note { text: "Shared through " + themes.stateFile + ": a change in either app restyles the other at once. Turning this on hands the widget this window's look." }
         }
 
+        // ---- theme manager ----
+        GuideCard {
+            Layout.fillWidth: true
+            title: "THEME MANAGER"
+            subtitle: "Every skin installed in " + themes.themesDir
+            Note { text: "HIDE keeps a skin out of the skin pickers here and the widget's Theme Store; it stays installed, and in use if it is. REMOVE deletes it from disk for both apps." }
+            Note {
+                visible: Theme.skins.length === 0
+                text: "No skins installed. Install them from the widget's Theme Store."
+            }
+            Note {
+                visible: tab.removeError !== ""
+                text: tab.removeError
+                color: Theme.alert
+            }
+            Repeater {
+                model: Theme.skins
+                RowLayout {
+                    id: managed
+                    required property var modelData
+                    readonly property bool hidden: Theme.hidden.indexOf(modelData.id) >= 0
+                    readonly property bool active: settings.skin === modelData.id
+                    Layout.fillWidth: true
+                    spacing: 12
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Label {
+                            Layout.fillWidth: true
+                            text: managed.modelData.name.toUpperCase() + (managed.active ? "  ● IN USE" : "") + (managed.hidden ? "  · HIDDEN" : "")
+                            color: managed.active ? Theme.accent : Theme.ink
+                            opacity: managed.hidden ? 0.6 : 1
+                            elide: Text.ElideRight
+                        }
+                        Note {
+                            text: "v" + managed.modelData.version + (managed.modelData.author ? " · by " + managed.modelData.author : "") + " · " + managed.modelData.id
+                        }
+                    }
+                    GuideButton {
+                        text: "APPLY"
+                        enabled: !managed.active
+                        onClicked: themes.setTheme(managed.modelData.id, settings.theme)
+                    }
+                    GuideButton {
+                        text: managed.hidden ? "SHOW" : "HIDE"
+                        tooltip: managed.hidden ? "Offer this skin in the pickers again" : "Keep this skin out of the pickers; it stays installed"
+                        onClicked: themes.setHidden(managed.modelData.id, !managed.hidden)
+                    }
+                    GuideButton {
+                        text: "REMOVE"
+                        tone: Theme.alert
+                        tooltip: "Delete this skin from disk"
+                        onClicked: {
+                            removeConfirm.skinId = managed.modelData.id
+                            removeConfirm.ask("REMOVE " + managed.modelData.name.toUpperCase() + "?",
+                                              "Deletes " + managed.modelData.dir + " from disk, for this app and the widget alike."
+                                              + (managed.active ? " The Guide's own look takes its place." : "")
+                                              + " The widget's Theme Store can install it again.", "REMOVE")
+                        }
+                    }
+                }
+            }
+        }
+
         // ---- theme ----
         GuideCard {
             Layout.fillWidth: true
@@ -381,5 +446,15 @@ Flickable {
         }
 
         Note { text: "SAVED TO " + settings.configPath }
+    }
+
+    ConfirmDialog {
+        id: removeConfirm
+        property string skinId: ""
+        parent: Overlay.overlay
+        onAccepted: {
+            var why = themes.remove(skinId)
+            tab.removeError = why ? "COULD NOT REMOVE " + skinId.toUpperCase() + ": " + why : ""
+        }
     }
 }
