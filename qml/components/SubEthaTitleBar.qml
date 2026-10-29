@@ -249,9 +249,17 @@ Item {
 
         DontPanicPill { visible: bar.os && !bar.centred && bar.chrome !== "terminal" && bar.chrome !== "kiroshi"; pixelSize: 9 }
 
+        Text {   // the skin's name at full length, to size the picker (its own label reports the elided width)
+            id: pickerProbe
+            visible: false
+            text: picker.displayText
+            font: picker.font
+        }
         GuideCombo {
             id: picker
-            implicitWidth: 230
+            // wide enough for the skin's name, within reason: its padding and the arrow besides,
+            // and some slack, as the drawn label runs a little wider than the probe
+            implicitWidth: Math.max(200, Math.min(360, Math.ceil(pickerProbe.implicitWidth * 1.08) + 46))
             implicitHeight: 26
             font.pixelSize: 10
             textRole: "label"

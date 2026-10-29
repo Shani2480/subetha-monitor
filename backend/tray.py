@@ -3,6 +3,10 @@ number or a graph (settings.trayMetric, settings.trayStyle), with telemetry
 in its tooltip and a menu to restore the window, open it on a tab, switch
 the theme or quit.
 
+Under a skin the window pushes its look here (setLook): the skin's own
+app icon stands in for the planet, in the tray and on the window, and a
+reading is drawn in the skin's ground, rule and level colours.
+
 The window itself lives in QML, so the tray only asks: `activateRequested`
 (a click on the icon) and `toggleThemeRequested` are handled there, and a
 tab request goes through `settings.tabRequested` like a second launch's.
@@ -11,7 +15,9 @@ Quitting from here is the one way out while closeToTray is on.
 
 from collections import deque
 
-from PySide6.QtCore import QBuffer, QByteArray, QObject, QPointF, QRectF, Qt, Property, Signal, Slot
+import json
+
+from PySide6.QtCore import QBuffer, QByteArray, QObject, QPointF, QRectF, Qt, QUrl, Property, Signal, Slot
 from PySide6.QtGui import QAction, QColor, QFont, QFontMetricsF, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
@@ -54,10 +60,11 @@ def _level(value, temp):
     return 2 if value >= hi else 1 if value >= mid else 0
 
 
-def render(value, history, unit, temp, dark, style):
+def render(value, history, unit, temp, dark, style, pal=None):
     """One reading as a 64 px icon: a framed number, or a framed area graph
-    of the recent history coloured by the latest level."""
-    pal = PALETTE[dark]
+    of the recent history coloured by the latest level; in `pal` (a skin's
+    colours, as PALETTE's) or the Guide's own."""
+    pal = pal or PALETTE[dark]
     level = _level(value, temp)
     pix = QPixmap(SIZE, SIZE)
     pix.fill(Qt.transparent)
@@ -122,6 +129,8 @@ class Tray(QObject):
         self._telemetry = telemetry
         self._hinted = False
         self._planet = QIcon(icon_path)
+        self._window_icon = app.windowIcon()     # the Guide's own, for when no skin is on
+        self._look = None                        # a skin's: {"icon": QIcon | None, "pal": {...}}
         self._history = {k: deque(maxlen=GRAPH_SAMPLES) for k in METRICS}
         self._preview = ""
         self._available = QSystemTrayIcon.isSystemTrayAvailable()
@@ -160,8 +169,31 @@ class Tray(QObject):
 
     def _label_theme(self):
         dark = self._settings.dark
-        self._theme_action.setText("Toggle Theme (to 2005 Movie Light)" if dark
-                                   else "Toggle Theme (to 1981 CRT Dark)")
+        if self._look:                           # no Guide lore under a skin
+            self._theme_action.setText("Switch to Light" if dark else "Switch to Dark")
+        else:
+            self._theme_action.setText("Toggle Theme (to 2005 Movie Light)" if dark
+                                       else "Toggle Theme (to 1981 CRT Dark)")
+
+    @Slot(str)
+    def setLook(self, look):
+        """The window's skin as JSON: {"skinned", "icon" (a file URL or ""),
+        "bg", "rule", "levels": [good, middling, bad]}; skinned false puts the
+        planet and the Guide's palette back."""
+        try:
+            d = json.loads(look)
+        except ValueError:
+            d = {}
+        if not d.get("skinned"):
+            self._look = None
+        else:
+            path = QUrl(d.get("icon") or "").toLocalFile()
+            icon = QIcon(path) if path else None
+            levels = tuple(d.get("levels") or ())
+            pal = {"bg": d.get("bg"), "rule": d.get("rule"), "levels": levels} if len(levels) == 3 and d.get("bg") and d.get("rule") else None
+            self._look = {"icon": icon if icon and not icon.isNull() else None, "pal": pal}
+        self._app.setWindowIcon(self._look["icon"] if self._look and self._look["icon"] else self._window_icon)
+        self._redraw()
 
     def _on_sample(self):
         d = self._telemetry.data
@@ -184,10 +216,12 @@ class Tray(QObject):
         d = self._telemetry.data
         read, unit, temp = METRICS.get(key, (None, "", False))
         value = read(d) if read and d else None
+        planet = self._look["icon"] if self._look and self._look["icon"] else self._planet
         if value is None:
-            icon, preview = self._planet, ""
+            icon, preview = planet, ""
         else:
-            pix = render(value, self._history[key], unit, temp, self._settings.dark, self._settings.trayStyle)
+            pix = render(value, self._history[key], unit, temp, self._settings.dark, self._settings.trayStyle,
+                         self._look["pal"] if self._look else None)
             icon = QIcon(pix)
             buf = QBuffer()
             buf.open(QBuffer.WriteOnly)

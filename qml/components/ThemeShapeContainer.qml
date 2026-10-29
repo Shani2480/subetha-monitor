@@ -42,8 +42,11 @@ Item {
     property real bracketInset: 4
     property string shadowType: theme && role !== "gauge" ? theme.shadowType : "none"
     property color shadowColor: theme ? theme.shadow : "black"
-    property real shadowOffsetX: theme ? theme.shadowX : 0
-    property real shadowOffsetY: theme ? theme.shadowY : 0
+    // A card's soft shadow falls far below it; on a pill or button that much
+    // offset would eat its height, so theirs is held to 2px (hard offsets stay)
+    readonly property real softCap: role !== "card" && shadowType === "soft" ? 2 : 1000
+    property real shadowOffsetX: theme ? Math.max(-softCap, Math.min(softCap, theme.shadowX)) : 0
+    property real shadowOffsetY: theme ? Math.max(-softCap, Math.min(softCap, theme.shadowY)) : 0
     property real shadowBlur: theme ? theme.shadowBlur : 0    // px
     property real padding: 0
     default property alias content: contentSlot.data

@@ -123,9 +123,20 @@ ApplicationWindow {
     Binding { target: Theme; property: "installed"; value: themes.installed }
     Binding { target: Theme; property: "hidden"; value: themes.hidden }
 
+    // The skin's look for the tray icon and the window's (Tray.setLook): its
+    // app icon, ground, rule and level colours; unskinned, the planet again.
+    readonly property string trayLook: JSON.stringify(!Theme.skinned ? { skinned: false } : {
+        skinned: true,
+        icon: String(Theme.icon("app") || ""),
+        bg: String(Theme.bg),
+        rule: String(Theme.accent),
+        levels: [String(Theme.gaugeUsage.a > 0 ? Theme.gaugeUsage : Theme.high), String(Theme.warnColor), String(Theme.critColor)]   // the alert amber and crimson, as on the cards
+    })
+    onTrayLookChanged: tray.setLook(trayLook)
     Component.onCompleted: {
         Theme.wantDark = settings.dark
         Theme.activeId = settings.skin
+        Qt.callLater(() => tray.setLook(win.trayLook))
         width = Math.max(minimumWidth, settings.width)
         height = Math.max(minimumHeight, settings.height)
         showTab(settings.startTab)
