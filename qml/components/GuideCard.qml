@@ -202,18 +202,28 @@ Item {
             preferredRendererType: Shape.CurveRenderer
             readonly property real r: Math.min(Theme.outerRadius, height / 2)
             readonly property real g: height * (Theme.sections.gloss ?? 0.45)
+            // the lower edge: the gadget's curve, or a diagonal sweep from high on the
+            // right to low on the left (glossShape "diagonal"; the curve as a cubic)
+            readonly property bool diag: Theme.sections.glossShape === "diagonal"
+            readonly property real w: card.width
+            readonly property real rightY: diag ? g * 0.44 : g * 0.55
+            readonly property real leftY: diag ? g * 0.8 : g
+            readonly property point c1: diag ? Qt.point(w * 0.65, g * 0.93)
+                                             : Qt.point(w - 3 + (w * 0.55 - w + 3) * 2 / 3, rightY + (g * 0.62 - rightY) * 2 / 3)
+            readonly property point c2: diag ? Qt.point(w * 0.25, g * 0.27)
+                                             : Qt.point(1 + (w * 0.55 - 1) * 2 / 3, leftY + (g * 0.62 - leftY) * 2 / 3)
             ShapePath {
                 strokeWidth: 0; strokeColor: "transparent"
                 fillGradient: LinearGradient {
                     x1: 0; y1: 0; x2: 0; y2: gloss.g
-                    GradientStop { position: 0; color: Qt.rgba(1, 1, 1, 0.32) }
+                    GradientStop { position: 0; color: Theme.sec("gloss", Qt.rgba(1, 1, 1, 0.32)) }
                     GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0.02) }
                 }
                 startX: gloss.r; startY: 1
                 PathLine { x: card.width - gloss.r - 2; y: 1 }
                 PathQuad { x: card.width - 3; y: gloss.r + 1; controlX: card.width - 3; controlY: 1 }
-                PathLine { x: card.width - 3; y: gloss.g * 0.55 }
-                PathQuad { x: 1; y: gloss.g; controlX: card.width * 0.55; controlY: gloss.g * 0.62 }
+                PathLine { x: card.width - 3; y: gloss.rightY }
+                PathCubic { x: 1; y: gloss.leftY; control1X: gloss.c1.x; control1Y: gloss.c1.y; control2X: gloss.c2.x; control2Y: gloss.c2.y }
                 PathLine { x: 1; y: gloss.r + 1 }
                 PathQuad { x: gloss.r; y: 1; controlX: 1; controlY: 1 }
             }

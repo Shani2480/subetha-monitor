@@ -221,6 +221,13 @@ QtObject {
               : skin.controls && skin.controls.meterColors ? skin.controls.meterColors[key] : ""
         return v ? v : "transparent"
     }
+    // a candy meter's four stops by what it measures (controls.meterStops, the variant's over the skin's); null: none
+    function meterStops(key) {
+        if (!skin || !key) return null
+        var v = variant && variant.meterStops && variant.meterStops[key] ? variant.meterStops[key]
+              : skin.controls && skin.controls.meterStops ? skin.controls.meterStops[key] : null
+        return v ? v : null
+    }
     function coreColor(i) { var c = controls.coreColors || []; return c.length ? c[i % c.length] : ink }
     readonly property var icons: Object.assign({}, skin && skin.icons ? skin.icons : {}, variant && variant.icons ? variant.icons : {})   // a variant's over the skin's
     function icon(key) { return icons[key] || "" }

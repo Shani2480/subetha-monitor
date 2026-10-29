@@ -84,7 +84,7 @@ function oneOf(v, options) { return options.indexOf(v) >= 0 ? v : "" }
 
 var chromeColorKeys = ["titleTop", "titleBottom", "titleText", "titleShadow", "titleInactive", "frameColor",
                        "buttonFace", "buttonGlyph", "closeFace", "closeGlyph"]
-var sectionColorKeys = ["bandColor", "bandText", "bandStatus", "rule"]
+var sectionColorKeys = ["bandColor", "bandText", "bandStatus", "rule", "gloss"]   // gloss: the sheen's colour at its top
 var controlColorKeys = ["meterTrack", "meterFillTop", "meterFillBottom", "meterInsetDark", "meterInsetLight",
                         "meterSheen", "graphBackground", "graphGrid", "graphDown", "graphUp", "cursor",
                         "dialFace", "dialTicks", "dialLens", "needleUsage", "needleTemp", "dialDanger"]
@@ -132,6 +132,7 @@ function parseSections(s, dir) {
              gear: asset(dir, s.gear),                                             // gadget: the settings button's icon
              close: asset(dir, s.close),                                           // gadget: the close box
              gloss: number(s.gloss, 0, 1),                                         // gadget, card: a curved sheen over this much of the panel's top
+             glossShape: oneOf(s.glossShape, ["curve", "diagonal"]) || "curve",   // diagonal: a sweep from high on the right to low on the left
              uppercase: s.uppercase !== false,
              titleSize: number(s.titleSize, 8, 18),
              colors: colorMap(s, sectionColorKeys) }
@@ -140,7 +141,8 @@ function parseSections(s, dir) {
 // style leaves the bar to geometry.gaugeShape.
 function parseControls(c, dir) {
     c = c && typeof c === "object" ? c : {}
-    return { meter: oneOf(c.meter, ["bevel", "ascii", "gadget", "angled", "slime"]),   // slime: a glass tube filling with ooze
+    return { meter: oneOf(c.meter, ["bevel", "ascii", "gadget", "angled", "slime", "candy"]),   // slime: a glass tube filling with ooze; candy: Vista's jelly bar split by a glare line
+             meterStops: stopsMap(c.meterStops),                                    // candy: four gradient stops per metric, top to bottom
              coreGraph: oneOf(c.coreGraph, ["multi"]),                              // multi: one jagged trace per core, a row each
              coreColors: (Array.isArray(c.coreColors) ? c.coreColors : []).slice(0, 16).map(color).filter(v => v),
              coreLabel: text(c.coreLabel, 12),                                      // "UNIT R-" → UNIT R-1, R-2, …
@@ -157,6 +159,13 @@ function parseControls(c, dir) {
              colors: colorMap(c, controlColorKeys) }
 }
 var meterKeys = ["cpu", "gpu", "memory", "swap", "disk", "battery"]
+// { cpu: [top, above the glare, below it, bottom], ... }: four colours each
+function stopsMap(m) {
+    var out = {}
+    m = m && typeof m === "object" ? m : {}
+    meterKeys.forEach(k => { var s = Array.isArray(m[k]) ? m[k].slice(0, 4).map(color) : []; if (s.length === 4 && s.every(c => c)) out[k] = s })
+    return out
+}
 // `art`: a hero illustration a card shows in its free corner (the CPU and
 // GPU cards, the weather pane), in place of nothing.
 var artKeys = ["cpu", "gpu", "memory", "network", "disk", "weather"]
@@ -232,7 +241,8 @@ function parseVariant(v, dir) {
         icons: parseIcons(v.icons, dir),                 // and icons (a moon by night, a sun by day)
         name: text(v.variantName, 40),
         controls: colorMap(v.controls, controlColorKeys),
-        meterColors: colorMap((v.controls || {}).meterColors, meterKeys)   // over controls.meterColors
+        meterColors: colorMap((v.controls || {}).meterColors, meterKeys),  // over controls.meterColors
+        meterStops: stopsMap((v.controls || {}).meterStops)
     }
 }
 

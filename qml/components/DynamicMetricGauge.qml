@@ -15,6 +15,8 @@ import "."
 //   "ascii"   a terminal's [||||||||....] 44%
 //   "gadget"  the Vista Sidebar's rounded segments, green shading to orange
 //   "angled"  slanted parallelogram blocks
+//   "candy"   Vista's jelly bar: a recessed capsule, the fill split by a
+//             crisp glare line across its middle (controls.meterStops)
 //   "slime"   a glass tube filling with ooze, its meniscus wobbling, a drop
 //             now and then falling from under it
 // controls.meterLabel puts the percentage at the right end.
@@ -81,6 +83,7 @@ Item {
                        : gauge.meter === "gadget" ? gadgetBar
                        : gauge.meter === "angled" ? angledBar
                        : gauge.meter === "slime" ? slimeBar
+                       : gauge.meter === "candy" ? candyBar
                        : gauge.ascii ? asciiBar
                        : ({ flat: flatBar, stadium: stadiumBar, chamfer: chamferBar, wavy: wavyBar, "analog-dial": flatBar })[gauge.shape] || blocks
     }
@@ -311,6 +314,47 @@ Item {
             anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; verticalCenterOffset: -parent.height * 0.12 }
             height: Math.max(1, parent.height * 0.28)
             color: Theme.ctl("meterSheen", Qt.rgba(1, 1, 1, 0.45))
+        }
+    }
+    // ---- candy: Vista's jelly bar ----
+    // The skin's four stops for what it measures (top, above the glare,
+    // below it, bottom) while nominal; else the level's colour split the same way.
+    readonly property var candyStops: {
+        var s = ownFill ? Theme.meterStops(metric) : null
+        return s ? s : [Qt.lighter(paint, 1.35), paint, Qt.darker(paint, 1.45), Qt.darker(paint, 1.75)]
+    }
+    Component {
+        id: candyBar
+        Rectangle {
+            id: slot
+            radius: height / 2
+            color: Theme.ctl("meterTrack", gauge.trackColor)
+            border { width: 1; color: Theme.ctl("meterInsetDark", Qt.rgba(0, 0, 0, 0.6)) }
+            Rectangle {   // the secondary wash
+                visible: gauge.hasSecondary
+                width: slot.width * gauge.s; height: slot.height
+                radius: Math.min(slot.radius, width / 2)
+                color: gauge.secondaryColor
+                opacity: gauge.secondaryOpacity
+            }
+            Rectangle {
+                id: jelly
+                visible: width > 1
+                width: slot.width * gauge.v; height: slot.height
+                radius: Math.min(slot.radius, width / 2)
+                gradient: Gradient {
+                    GradientStop { position: 0; color: gauge.candyStops[0] }
+                    GradientStop { position: 0.48; color: gauge.candyStops[1] }
+                    GradientStop { position: 0.52; color: gauge.candyStops[2] }
+                    GradientStop { position: 1; color: gauge.candyStops[3] }
+                }
+                Rectangle {   // the specular line along its top
+                    anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 1
+                              leftMargin: Math.min(jelly.radius, jelly.width / 2); rightMargin: anchors.leftMargin }
+                    height: Math.min(2, slot.height / 4)
+                    color: Qt.rgba(1, 1, 1, 0.55)
+                }
+            }
         }
     }
     Component {
