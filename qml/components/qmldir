@@ -28,3 +28,11 @@ SustainedLevel 1.0 SustainedLevel.qml
 DynamicMetricGauge 1.0 DynamicMetricGauge.qml
 ThemeEffectsLayer 1.0 ThemeEffectsLayer.qml
 SkinGrid 1.0 SkinGrid.qml
+ChromeButton 1.0 ChromeButton.qml
+ChromeFrameShape 1.0 ChromeFrameShape.qml
+AnalogDial 1.0 AnalogDial.qml
+CharacterVignette 1.0 CharacterVignette.qml
+SemiDial 1.0 SemiDial.qml
+FrameMarquee 1.0 FrameMarquee.qml
+SlimeDrips 1.0 SlimeDrips.qml
+FrameParts 1.0 FrameParts.qml

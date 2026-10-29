@@ -44,7 +44,7 @@ ColumnLayout {
                 capacity: 60
                 lineWidth: 2
                 historyData: Theme.norm(tab.nh.rx, tab.peak)
-                strokeColor: Theme.ink
+                strokeColor: Theme.netDown
             }
             SparklineGraph {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
@@ -53,10 +53,10 @@ ColumnLayout {
                 lineWidth: 2
                 inverted: true
                 historyData: Theme.norm(tab.nh.tx, tab.peak)
-                strokeColor: Theme.cool
+                strokeColor: Theme.netUp
             }
-            Text { x: 4; y: 4; text: "▼ RX"; color: Theme.ink; font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true } }
-            Text { x: 4; anchors.bottom: parent.bottom; anchors.bottomMargin: 4; text: "▲ TX"; color: Theme.cool
+            Text { x: 4; y: 4; text: "▼ RX"; color: Theme.netDown; font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true } }
+            Text { x: 4; anchors.bottom: parent.bottom; anchors.bottomMargin: 4; text: "▲ TX"; color: Theme.netUp
                    font { family: Theme.mono; features: Theme.figures; pixelSize: 10; bold: true } }
         }
     }

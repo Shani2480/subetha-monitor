@@ -18,6 +18,16 @@
 //   "variants": { "dark": { background, …, gaugeUsage, gaugeTemp, badgeBackground, badgeText } }   flat keys
 //   "narrative": { badgeLabel, weatherSkyHazard, weatherSkyHazardSecondary, roamerPrimary,
 //                  roamerSecondary, quips: { nominal, critical, … }, lexicon: { <key>: <label> } }
+//
+// Schema 2.1.0 adds the operating system a skin imitates, drawn by built-in
+// renderers the data only selects (see parseChrome and friends):
+//   "chrome":   the window's title bar, buttons and frame
+//   "sections": card panels, or Win32 group bands with a rule under each title
+//   "controls": the meter and graph styles (bevel, ascii, gadget, angled; taskmgr)
+//   "icons":    the skin's own SVG for each metric (cpu, ram, swap, gpu, …)
+//   "art":      hero illustrations for the CPU, GPU, memory, network, disk and weather cards
+//   "features": also enableBarrel (CRT glass curvature) and texture ("carbon")
+// Colours in chrome / sections / controls may be overridden per variant.
 // Under any skin the Guide's own lore (the towel, the whale, "DON'T PANIC")
 // never shows: what the skin leaves out falls back to plain labels.
 
@@ -27,7 +37,7 @@ var colorKeys = ["background", "cardBackground", "cardBackgroundHover", "textPri
                  "netDown", "netUp", "gaugeFillEdge", "sparklineDanger", "sparklineHot", "commentary",
                  "textOnBackground"]           // text drawn straight on `background` (mastheads); default: whichever reads
 var quipKeys = ["nominal", "moderate", "highLoad", "critical", "night"]
-var frameColorKeys = ["dpad", "brackets", "slash", "watermarkColor", "rivets", "dials"]
+var frameColorKeys = ["dpad", "brackets", "slash", "watermarkColor", "rivets", "dials", "plaque", "plaqueText", "plaqueSubtext", "slime", "rim"]
 
 // "#RRGGBB", "#AARRGGBB", "rgb(r, g, b)" or "rgba(r, g, b, a)" as "#AARRGGBB"; "" if none of those.
 function color(v) {
@@ -70,6 +80,87 @@ function resolveFont(list, installed, fallback) {
 function flag(v) { return typeof v === "boolean" ? v : null }
 
 function oneOf(v, options) { return options.indexOf(v) >= 0 ? v : "" }
+
+var chromeColorKeys = ["titleTop", "titleBottom", "titleText", "titleShadow", "titleInactive", "frameColor",
+                       "buttonFace", "buttonGlyph", "closeFace", "closeGlyph"]
+var sectionColorKeys = ["bandColor", "bandText", "bandStatus", "rule"]
+var controlColorKeys = ["meterTrack", "meterFillTop", "meterFillBottom", "meterInsetDark", "meterInsetLight",
+                        "meterSheen", "graphBackground", "graphGrid", "graphDown", "graphUp", "cursor",
+                        "dialFace", "dialTicks", "dialLens", "needleUsage", "needleTemp", "dialDanger"]
+var iconKeys = ["app", "cpu", "ram", "swap", "gpu", "netDown", "netUp", "disk", "battery", "fan", "weather",
+                "clock", "ai", "process", "service", "settings"]
+
+// `chrome`: the window the skin's operating system would draw. The style
+// picks a built-in renderer; the rest tunes it.
+function parseChrome(ch, dir) {
+    ch = ch && typeof ch === "object" ? ch : {}
+    var style = oneOf(ch.style, ["luna", "aqua", "aero", "material", "terminal", "kiroshi", "hud", "plain"])
+    return {
+        style: style,                                                              // "": the Guide's own title bar
+        buttons: oneOf(ch.buttons, ["luna", "traffic", "aero", "material", "terminal", "kiroshi", "hud"]) || style,   // hud: flat ≡ – ✕ in the accent
+        titleAlign: oneOf(ch.titleAlign, ["left", "center"]) || (style === "aqua" ? "center" : "left"),
+        titleHeight: number(ch.titleHeight, 18, 48),
+        topRadius: number(ch.topRadius, 0, 24),
+        bottomRadius: number(ch.bottomRadius, 0, 24),
+        frameWidth: number(ch.frameWidth, 0, 6),
+        titleBold: ch.titleBold !== false,
+        logo: asset(dir, ch.logo),                                                 // the mark at the title's end
+        badge: asset(dir, ch.badge),                                               // hud: a brand badge before the title
+        subtitle: text(ch.subtitle, 40),                                           // a second, muted line under the title
+        colors: colorMap(ch, chromeColorKeys)
+    }
+}
+// `sections`: how a panel's title sits. "card" is a card with its title
+// inside; "groupband" is a Win32 group: a flat band, the title in bold caps
+// with a status to the right, a hairline rule under it; "gadget" is a Vista
+// Sidebar gadget: a glass panel with a gloss over its top, the title in white
+// caps with a shadow, a settings gear and a close box at the top right.
+function parseSections(s, dir) {
+    s = s && typeof s === "object" ? s : {}
+    return { style: oneOf(s.style, ["card", "groupband", "gadget"]) || "card",
+             screws: s.screws === true,                                            // a mounting screw in each corner
+             tints: colorMap(s.tints, ["cpu", "gpu", "memory", "network", "disk", "weather"]),   // a card's own surface
+             gear: asset(dir, s.gear),                                             // gadget: the settings button's icon
+             close: asset(dir, s.close),                                           // gadget: the close box
+             gloss: number(s.gloss, 0, 1),                                         // gadget: the sheen's height, of the panel
+             uppercase: s.uppercase !== false,
+             titleSize: number(s.titleSize, 8, 18),
+             colors: colorMap(s, sectionColorKeys) }
+}
+// `controls`: meters and graphs in the skin's own idiom. An empty meter
+// style leaves the bar to geometry.gaugeShape.
+function parseControls(c, dir) {
+    c = c && typeof c === "object" ? c : {}
+    return { meter: oneOf(c.meter, ["bevel", "ascii", "gadget", "angled", "slime"]),   // slime: a glass tube filling with ooze
+             coreGraph: oneOf(c.coreGraph, ["multi"]),                              // multi: one jagged trace per core, a row each
+             coreColors: (Array.isArray(c.coreColors) ? c.coreColors : []).slice(0, 16).map(color).filter(v => v),
+             coreLabel: text(c.coreLabel, 12),                                      // "UNIT R-" → UNIT R-1, R-2, …
+             meterLabel: c.meterLabel === true,                                     // "44%" at the meter's right end
+             graph: oneOf(c.graph, ["taskmgr", "line"]) || "line",
+             graphFill: c.graphFill !== false,
+             cursor: c.cursor === true,                                             // a blinking █ after commentary
+             dialRim: asset(dir, c.dialRim),                                        // analog-dial: the bezel ring art
+             dialStyle: oneOf(c.dialStyle, ["round", "semicircle"]) || "round",     // semicircle: wedges green→red, a row of three (usage, speed, temp)
+             thermometer: c.thermometer === true,                                   // weather: a glass thermometer beside the readout
+             dialTempMax: number(c.dialTempMax, 40, 150) || 100,                    // °C at the temperature dial's end
+             dialDangerFrom: number(c.dialDangerFrom, 30, 150),                     // °C where its red zone starts
+             colors: colorMap(c, controlColorKeys) }
+}
+// `art`: a hero illustration a card shows in its free corner (the CPU and
+// GPU cards, the weather pane), in place of nothing.
+var artKeys = ["cpu", "gpu", "memory", "network", "disk", "weather"]
+function parseArt(a, dir) {
+    var out = {}
+    a = a && typeof a === "object" ? a : {}
+    artKeys.forEach(k => { var v = asset(dir, a[k]); if (v) out[k] = v })
+    return out
+}
+function parseIcons(ic, dir) {
+    var out = {}
+    ic = ic && typeof ic === "object" ? ic : {}
+    iconKeys.forEach(k => { var v = asset(dir, ic[k]); if (v) out[k] = v })
+    return out
+}
 // The skin's `geometry` block: the shape of cards, pills, gauges and
 // buttons, their border and shadow. Anything missing or malformed is ""
 // or null and SubEthaTheme falls back to the skin's older colour tokens
@@ -81,7 +172,7 @@ function parseGeometry(g) {
     return {
         cardShape: oneOf(g.cardShape === "custom" ? "" : g.cardShape, shapes),   // "custom": the skin's frame decides
         pillShape: oneOf(g.pillShape, shapes),
-        gaugeShape: oneOf(g.gaugeShape, ["flat", "stadium", "segmented", "chamfer", "wavy"]),
+        gaugeShape: oneOf(g.gaugeShape, ["flat", "stadium", "segmented", "chamfer", "wavy", "analog-dial"]),   // analog-dial: a round meter beside the figures, the bar in controls.meter
         cornerRadius: number(g.cornerRadius, 0, 40),
         pillRadius: number(g.pillRadius, 0, 40),
         chamferCut: number(g.chamferCut, 0, 24),
@@ -119,7 +210,11 @@ function parseVariant(v) {
                              Array.isArray(frame.buttons) ? { buttons: frame.buttons.slice(0, 4).map(color).filter(b => b) } : {},
                              Array.isArray(frame.hazard) ? { hazard: frame.hazard.slice(0, 2).map(color).filter(b => b) } : {},
                              frame.button && color(frame.button.color) ? { buttonColor: color(frame.button.color) } : {}),
-        ground: colorMap(v.ground, ["color", "alertColor"])
+        ground: colorMap(v.ground, ["color", "alertColor"]),
+        chrome: colorMap(v.chrome, chromeColorKeys),
+        sections: colorMap(v.sections, sectionColorKeys),
+        tints: colorMap((v.sections || {}).tints, ["cpu", "gpu", "memory", "network", "disk", "weather"]),
+        controls: colorMap(v.controls, controlColorKeys)
     }
 }
 
@@ -164,8 +259,24 @@ function parseStyle(json, dir) {
             phosphorDecay: flag(feats.enablePhosphorDecay),
             cornerBrackets: flag(feats.enableCornerBrackets),
             glassBlur: flag(feats.enableGlassBlur),
-            grid: flag(feats.enableGrid)
+            grid: flag(feats.enableGrid),
+            barrel: flag(feats.enableBarrel),
+            texture: oneOf(feats.texture, ["carbon", "brushed", "noise"]),
+            cartoonOutlines: flag(feats.enableCartoonOutlines),      // thick ink outlines on every part, flat offset shadows
+            portalSpinners: flag(feats.enablePortalSpinners),        // frame.portal art turns slowly
+            slimeDrips: flag(feats.enableSlimeDrips)                 // ooze hangs off the top and bottom edges
         },
+        chrome: parseChrome(json.chrome, dir),
+        sections: parseSections(json.sections, dir),
+        controls: parseControls(json.controls, dir),
+        icons: parseIcons(json.icons, dir),
+        art: parseArt(json.art, dir),
+        // `narrative.vignettes`: a character in a card's corner with a speech bubble
+        vignettes: (Array.isArray(story2.vignettes) ? story2.vignettes : []).slice(0, 6).map(v => ({
+            at: oneOf((v || {}).at, ["cpu", "gpu", "weather", "memory", "footer"]),
+            art: asset(dir, (v || {}).art),
+            text: text((v || {}).text, 80)
+        })).filter(v => v.at && v.art),
         lexicon: lexicon,
         colors: colors,
         borderWidth: number(c.borderWidth, 0, 6),
@@ -184,7 +295,33 @@ function parseStyle(json, dir) {
         badgeColor: color(json.badgeColor) || color(story.badgeColor),
         badgeTextColor: color(json.badgeTextColor),
         quips: quips,
-        frame: frame.style === "handheld" ? {
+        frame: frame.style === "candy" ? {
+            style: "candy",                                       // a pastel candy box: wavy ink border, sweets along the edges
+            decorations: asset(dir, frame.decorations),           // tiled along the left, top and bottom edges
+            hudLeft: asset(dir, frame.hudLeft),                   // button art at the marquee's left end
+            hudRight: asset(dir, frame.hudRight),                 // …and its right end
+            plaqueTitle: text(frame.plaqueTitle, 48),
+            plaqueSubtitle: text(frame.plaqueSubtitle, 80),
+            plaque: color(frame.plaque), plaqueText: color(frame.plaqueText), plaqueSubtext: color(frame.plaqueSubtext),
+            rim: color(frame.rim)                                 // the frame's pastel body
+        } : frame.style === "scrap" ? {
+            style: "scrap",                                       // cobbled garage plating: rivets, welded seams
+            portal: asset(dir, frame.portal),                     // spun on both sides of the marquee title
+            toolbelt: asset(dir, frame.toolbelt),                 // the workbench rail along the bottom
+            plaqueTitle: text(frame.plaqueTitle, 48),
+            plaqueSubtitle: text(frame.plaqueSubtitle, 120),
+            plaque: color(frame.plaque), plaqueText: color(frame.plaqueText), plaqueSubtext: color(frame.plaqueSubtext),
+            slime: color(frame.slime), rivets: color(frame.rivets)
+        } : frame.style === "console" ? {
+            style: "console",                                     // a cartoon lab mainframe around the widget / window
+            tubes: asset(dir, frame.tubes),                       // art on the top rail, left and right
+            siren: asset(dir, frame.siren),                       // top centre; flashes on a critical reading
+            plaqueTitle: text(frame.plaqueTitle, 32),             // the bevelled name plate
+            plaqueSubtitle: text(frame.plaqueSubtitle, 32),
+            pillars: frame.pillars !== false,                     // side wings of switches, buttons and bulbs
+            rail: frame.rail !== false,                           // the bottom conduit of LED segments
+            plaque: color(frame.plaque), plaqueText: color(frame.plaqueText), plaqueSubtext: color(frame.plaqueSubtext)
+        } : frame.style === "handheld" ? {
             style: "handheld",
             dpad: color(frame.dpad),
             buttons: (Array.isArray(frame.buttons) ? frame.buttons : []).slice(0, 4).map(color).filter(v => v),

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8">
+  <!-- a 2x2 twill of carbon-fibre tows, neutral so it sits on any background -->
+  <rect width="8" height="8" fill="#000000" fill-opacity="0.22"/>
+  <rect x="0" y="0" width="4" height="4" fill="#FFFFFF" fill-opacity="0.07"/>
+  <rect x="4" y="4" width="4" height="4" fill="#FFFFFF" fill-opacity="0.07"/>
+  <rect x="0" y="0" width="4" height="1" fill="#FFFFFF" fill-opacity="0.08"/>
+  <rect x="4" y="4" width="4" height="1" fill="#FFFFFF" fill-opacity="0.08"/>
+  <rect x="4" y="0" width="1" height="4" fill="#000000" fill-opacity="0.18"/>
+  <rect x="0" y="4" width="1" height="4" fill="#000000" fill-opacity="0.18"/>
+</svg>

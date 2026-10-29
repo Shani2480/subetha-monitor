@@ -13,6 +13,15 @@ Flickable {
     readonly property var t: telemetry.data
     readonly property var specs: telemetry.specs
     readonly property var cpu: t.cpu || {}
+    // each core's recent load, 0..1, for a skin's per-core traces (controls.coreGraph "multi")
+    property var coreHist: []
+    onCpuChanged: {
+        if (!Theme.coreTraces) return
+        var now = cpu.perCore || []
+        coreHist = now.slice(0, 16).map(function (v, i) {
+            return (coreHist[i] || []).concat([Math.max(0, Math.min(1, (Number(v) || 0) / 100))]).slice(-40)
+        })
+    }
     readonly property var gpu: t.gpu || {}
     readonly property var mem: t.mem || {}
     readonly property var net: t.net || {}
@@ -81,7 +90,8 @@ Flickable {
     GuideCard {
         id: profile
         width: tab.width - 10
-        title: "SYSTEM PROFILE  //  " + (tab.specs.host || "").toUpperCase()
+        title: Theme.lex("profileTitle", "SYSTEM PROFILE", "SYSTEM PROFILE") + "  //  " + (tab.specs.host || "").toUpperCase()
+        icon: "app"
         subtitle: Theme.lex("entryLabel", "GUIDE ENTRY", "STATUS") + ": " + tab.entry
         header: [
             Text {
@@ -117,6 +127,8 @@ Flickable {
             Layout.fillHeight: true
             Layout.preferredWidth: 1
             title: Theme.lex("cpuTitle", "CPU  //  PROCESSING CORE", "CPU")
+            icon: "cpu"
+            section: "cpu"
             subtitle: tab.specs.cpuModel || ""
             alertTracked: true
             alertLevel: Alerts.cpuLevel
@@ -127,6 +139,21 @@ Flickable {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 16
+                Row {   // the cartoon lab's three half dials (controls.dialStyle "semicircle")
+                    visible: Theme.analogDial && Theme.dialStyle === "semicircle"
+                    spacing: 6
+                    SemiDial { caption: "USAGE"; value: (tab.cpu.usage || 0) / 100; live: tab.shown }
+                    SemiDial { caption: "SPEED"; value: tab.cpu.freqMax > 0 ? (tab.cpu.freq || 0) / tab.cpu.freqMax : 0; live: tab.shown }
+                    SemiDial { caption: "TEMP"; value: (tab.cpu.temp || 0) / (Theme.controls.dialTempMax || 100); live: tab.shown }
+                }
+                AnalogDial {   // a skin's round meter (geometry.gaugeShape "analog-dial")
+                    visible: Theme.analogDial && Theme.dialStyle !== "semicircle"
+                    Layout.preferredWidth: 72; Layout.preferredHeight: 72
+                    value: tab.cpu.usage || 0
+                    figure: Theme.pct(tab.cpu.usage)
+                    caption: "CPU Usage"
+                    live: tab.shown
+                }
                 Text {
                     text: Theme.pct(tab.cpu.usage)
                     color: Theme.levelInk(Alerts.cpuLoad, Theme.load(tab.cpu.usage || 0))
@@ -158,7 +185,38 @@ Flickable {
                 historyData: tab.hist.cpu || []
                 strokeColor: Theme.load(tab.cpu.usage || 0)
             }
+            Column {   // a skin's per-core traces: a jagged line each, labelled
+                visible: Theme.coreTraces
+                Layout.fillWidth: true
+                spacing: 1
+                Repeater {
+                    model: Theme.coreTraces ? tab.coreHist.length : 0
+                    Row {
+                        id: coreRow
+                        required property int index
+                        width: parent.width
+                        spacing: 6
+                        Text {
+                            width: 58
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: (Theme.controls.coreLabel || "CORE ") + (coreRow.index + 1)
+                            color: Theme.coreColor(coreRow.index)
+                            font { family: Theme.mono; features: Theme.figures; pixelSize: 9; bold: true }
+                        }
+                        SparklineGraph {
+                            width: coreRow.width - 64; height: 14
+                            capacity: 40
+                            lineWidth: 1.5
+                            backdrop: false
+                            fillColor: "transparent"
+                            historyData: tab.coreHist[coreRow.index] || []
+                            strokeColor: Theme.coreColor(coreRow.index)
+                        }
+                    }
+                }
+            }
             Flow {   // one micro meter per thread
+                visible: !Theme.coreTraces
                 Layout.fillWidth: true
                 spacing: 3
                 Repeater {
@@ -201,6 +259,8 @@ Flickable {
             Layout.fillHeight: true
             Layout.preferredWidth: 1
             title: Theme.lex("gpuTitle", "GPU  //  GRAPHICS ENGINE", "GPU")
+            icon: "gpu"
+            section: "gpu"
             subtitle: tab.gpu.name || "NO GRAPHICS ENGINE DETECTED"
             alertTracked: !!tab.gpu.name
             alertLevel: Alerts.gpuLevel
@@ -211,6 +271,23 @@ Flickable {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 16
+                SemiDial {
+                    visible: Theme.analogDial && Theme.dialStyle === "semicircle"
+                    caption: "LOAD"
+                    value: (tab.gpu.usage || 0) / 100
+                    live: tab.shown
+                }
+                AnalogDial {   // the GPU's temperature, its red zone the skin's danger range
+                    visible: Theme.analogDial && Theme.dialStyle !== "semicircle"
+                    Layout.preferredWidth: 72; Layout.preferredHeight: 72
+                    value: tab.gpu.temp || 0
+                    max: Theme.controls.dialTempMax || 100
+                    dangerFrom: Theme.controls.dialDangerFrom || -1
+                    needle: Theme.ctl("needleTemp", Theme.gaugeTemp)
+                    figure: Theme.temp(tab.gpu.temp)
+                    caption: "Temperature"
+                    live: tab.shown
+                }
                 Text {
                     text: Theme.pct(tab.gpu.usage)
                     color: Theme.levelInk(Alerts.gpuLoad, Theme.load(tab.gpu.usage || 0))
@@ -272,6 +349,8 @@ Flickable {
             Layout.fillHeight: true
             Layout.preferredWidth: 1
             title: Theme.lex("memoryTitle", "MEMORY  //  CORE STORE", "MEMORY")
+            icon: "ram"
+            section: "memory"
             subtitle: Theme.bytes(tab.mem.used, 1) + " OF " + Theme.bytes(tab.mem.total, 0) + " IN USE"
             alertTracked: true
             alertLevel: Alerts.ram
@@ -299,6 +378,12 @@ Flickable {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
+                Image {   // the skin's swap icon
+                    visible: source != ""
+                    Layout.preferredWidth: 16; Layout.preferredHeight: 16
+                    source: Theme.icon("swap")
+                    sourceSize: Qt.size(32, 32)
+                }
                 Text {
                     Layout.preferredWidth: 46
                     text: "SWAP"
@@ -331,6 +416,7 @@ Flickable {
             Layout.fillHeight: true
             Layout.preferredWidth: 1
             title: Theme.lex("coolingTitle", "COOLING ARRAYS", "COOLING")
+            icon: "fan"
             subtitle: tab.fans.length ? tab.fans.length + " FAN" + (tab.fans.length > 1 ? "S" : "") + " REPORTING" : "NO FAN TELEMETRY"
 
             Repeater {
@@ -389,13 +475,15 @@ Flickable {
             Layout.fillHeight: true
             Layout.preferredWidth: 1
             title: Theme.lex("networkTitle", "SUB-ETHA NETWORK", "NETWORK")
+            icon: "netDown"
+            section: "network"
             subtitle: tab.net.iface ? (tab.net.iface + "  ·  " + (tab.net.kind || "").toUpperCase()).toUpperCase() : "NO ACTIVE LINK"
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 16
-                ReadoutLabel { Layout.fillWidth: true; label: "▼ DOWNLOAD"; value: Theme.rate(tab.net.rx); valueSize: 20 }
-                ReadoutLabel { Layout.fillWidth: true; label: "▲ UPLOAD"; value: Theme.rate(tab.net.tx); valueSize: 20; valueColor: Theme.cool }
+                ReadoutLabel { Layout.fillWidth: true; label: "▼ DOWNLOAD"; value: Theme.rate(tab.net.rx); valueSize: 20; valueColor: Theme.netDown }
+                ReadoutLabel { Layout.fillWidth: true; label: "▲ UPLOAD"; value: Theme.rate(tab.net.tx); valueSize: 20; valueColor: Theme.netUp }
             }
             Item {   // two-way plot: download up from the axis, upload hanging below
                 Layout.fillWidth: true
@@ -405,14 +493,14 @@ Flickable {
                     anchors { left: parent.left; right: parent.right; top: parent.top }
                     height: parent.height / 2
                     historyData: Theme.norm(tab.hist.rx, parent.peak)
-                    strokeColor: Theme.ink
+                    strokeColor: Theme.netDown
                 }
                 Rectangle { anchors.verticalCenter: parent.verticalCenter; width: parent.width; height: 1; color: Theme.tint(0.3) }
                 SparklineGraph {
                     anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
                     height: parent.height / 2
                     historyData: Theme.norm(tab.hist.tx, parent.peak)
-                    strokeColor: Theme.cool
+                    strokeColor: Theme.netUp
                     inverted: true
                 }
             }
@@ -431,6 +519,8 @@ Flickable {
             Layout.fillHeight: true
             Layout.preferredWidth: 1
             title: Theme.lex("storageTitle", "DATA BANKS", "STORAGE")
+            icon: "disk"
+            section: "disk"
             subtitle: "READ " + Theme.rate(tab.t.diskRead) + "  ·  WRITE " + Theme.rate(tab.t.diskWrite)
             alertTracked: true
             alertLevel: Alerts.disks
@@ -477,7 +567,7 @@ Flickable {
                 Layout.preferredHeight: 40
                 readonly property real peak: Math.max(1048576, Math.max.apply(null, (tab.hist.diskRead || []).concat(tab.hist.diskWrite || []).concat([0])))
                 SparklineGraph { anchors.fill: parent; historyData: Theme.norm(tab.hist.diskRead, parent.peak); strokeColor: Theme.ink }
-                SparklineGraph { anchors.fill: parent; historyData: Theme.norm(tab.hist.diskWrite, parent.peak); strokeColor: Theme.cool; fillColor: "transparent" }
+                SparklineGraph { anchors.fill: parent; historyData: Theme.norm(tab.hist.diskWrite, parent.peak); strokeColor: Theme.cool; fillColor: "transparent"; backdrop: false }
             }
             Item { Layout.fillHeight: true }
         }

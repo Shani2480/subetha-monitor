@@ -15,6 +15,7 @@ import "skins.js" as Skins
 QtObject {
     id: theme
 
+    signal settingsRequested()                   // a Sidebar gadget's gear (GuideCard); MainAppWindow opens Settings
     property bool wantDark: true                 // the settings' light / dark, "auto" resolved
     property var installed: []                   // [{ id, dir, json }] from main.py's `themes`
     property string activeId: "h2g2"             // "h2g2": the Guide's own palette
@@ -101,20 +102,20 @@ QtObject {
     readonly property real pillChamferCut: gv("pillChamferCut", Math.min(6, chamferCut))
     readonly property real stadiumMax: 24
     readonly property string borderStyle: gv("borderStyle", "solid")
-    readonly property real borderWidth: gv("borderWidth", skin && skin.borderWidth !== null ? skin.borderWidth : dark ? 1 : 2)
+    readonly property real borderWidth: Math.max(cartoon ? 3 : 0, gv("borderWidth", skin && skin.borderWidth !== null ? skin.borderWidth : dark ? 1 : 2))
     readonly property bool cornerBrackets: skin && skin.features && skin.features.cornerBrackets !== null
                                            ? skin.features.cornerBrackets : gv("hasCornerBrackets", skin ? !!(frame && frame.brackets) : true)
     readonly property color bracketColor: frame && frame.brackets ? frame.brackets : !skin ? (dark ? amber : ink) : border
     readonly property bool legacyShadow: !!skin && (skin.shadowOffset[0] || skin.shadowOffset[1]) && shadow.a > 0
-    readonly property string shadowType: geo.hasDropShadow === false ? "none"
+    readonly property string shadowType: cartoon ? "flat-2d" : geo.hasDropShadow === false ? "none"
         : gv("shadowType", !skin ? (dark ? "glow" : "flat-2d")
                          : legacyShadow ? (skin.shadowBlur > 0 ? "soft" : "flat-2d") : "none")
-    readonly property real shadowX: shadowType === "glow" || shadowType === "none" ? 0
+    readonly property real shadowX: cartoon && !(geo.shadowOffset || [])[0] ? 3 : shadowType === "glow" || shadowType === "none" ? 0
         : (geo.shadowOffset || [])[0] ?? (skin && skin.shadowOffset[0] !== null ? skin.shadowOffset[0] : 2)
-    readonly property real shadowY: shadowType === "glow" || shadowType === "none" ? 0
+    readonly property real shadowY: cartoon && !(geo.shadowOffset || [])[1] ? 3 : shadowType === "glow" || shadowType === "none" ? 0
         : (geo.shadowOffset || [])[1] ?? (skin && skin.shadowOffset[1] !== null ? skin.shadowOffset[1] : 2)
     readonly property real shadowBlur: gv("shadowBlur", skin && skin.shadowBlur !== null ? skin.shadowBlur * 24 : shadowType === "glow" ? 6 : 0)
-    function shapeOf(role) { return role === "pill" ? pillShape : role === "gauge" ? ({ segmented: "sharp", flat: "sharp" })[gaugeShape] || gaugeShape : cardShape }
+    function shapeOf(role) { return role === "pill" ? pillShape : role === "gauge" ? ({ segmented: "sharp", flat: "sharp", "analog-dial": "sharp" })[gaugeShape] || gaugeShape : cardShape }
     function radiusOf(role) { return role === "pill" ? pillCornerRadius : role === "gauge" ? 2 : cornerRadius }
     function chamferOf(role) { return role === "card" ? chamferCut : pillChamferCut }
 
@@ -163,6 +164,58 @@ QtObject {
         glassBlur: feature("glassBlur", false),
         grid: feature("grid", false)
     }
+
+    // ---- the operating system a skin imitates (skins.js 2.1.0) ----
+    // `chrome` the window's title bar, buttons and frame; `sections` cards or
+    // Win32 group bands; `controls` meters and graphs; `icons` its own SVGs.
+    // The colours in each lie over the skin's own per variant. Unskinned, or
+    // with a style left empty, each is the Guide's own look.
+    function merged(part) {
+        if (!skin || !skin[part]) return { colors: {} }
+        var over = variant && variant[part] ? variant[part] : {}
+        return Object.assign({}, skin[part], { colors: Object.assign({}, skin[part].colors, over) })
+    }
+    readonly property var chrome: merged("chrome")
+    readonly property string chromeStyle: chrome.style || ""
+    function cc(key, fallback) { var v = chrome.colors[key]; return v ? v : fallback }
+    readonly property var sections: merged("sections")
+    readonly property bool groupBands: sections.style === "groupband"
+    readonly property bool gadgets: sections.style === "gadget"          // Vista Sidebar gadgets
+    readonly property bool screws: !!sections.screws                     // a mounting screw in each card corner
+    // a card's own surface (sections.tints), by its key (cpu, gpu, memory, network, disk)
+    function tintOf(key) {
+        var v = variant && variant.tints && variant.tints[key] ? variant.tints[key]
+              : skin && skin.sections && skin.sections.tints ? skin.sections.tints[key] : ""
+        return v ? v : card
+    }
+    // hero illustrations for the cards' free corners, and characters with speech bubbles
+    readonly property var art: skin && skin.art ? skin.art : ({})
+    function vignette(at) { return skin && skin.vignettes ? skin.vignettes.find(function (v) { return v.at === at }) || null : null }
+    // thick ink outlines and flat offset shadows on everything
+    readonly property bool cartoon: !!skin && feature("cartoonOutlines", false) === true
+    readonly property bool portalSpin: !!skin && feature("portalSpinners", false) === true
+    readonly property bool slimeDrips: !!skin && feature("slimeDrips", false) === true
+    readonly property string frameStyle: frame && frame.style ? frame.style : ""     // bezel, handheld, console, scrap
+    function sec(key, fallback) { var v = sections.colors[key]; return v ? v : fallback }
+    readonly property var controls: merged("controls")
+    readonly property string meterStyle: controls.meter || ""
+    readonly property string graphStyle: controls.graph || "line"
+    function ctl(key, fallback) { var v = controls.colors[key]; return v ? v : fallback }
+    readonly property bool blinkCursor: !!controls.cursor
+    readonly property string dialStyle: controls.dialStyle || "round"
+    readonly property bool coreTraces: skinned && controls.coreGraph === "multi"
+    function coreColor(i) { var c = controls.coreColors || []; return c.length ? c[i % c.length] : ink }
+    readonly property var icons: skin && skin.icons ? skin.icons : ({})
+    function icon(key) { return icons[key] || "" }
+    readonly property bool barrel: !!skin && feature("barrel", false) === true
+    readonly property string texture: skin && skin.features && skin.features.texture ? skin.features.texture : ""
+    // network history and figures: download and upload
+    readonly property color netDown: skinned ? ctl("graphDown", sc("netDown", ink)) : ink
+    readonly property color netUp:   skinned ? ctl("graphUp", sc("netUp", cool)) : cool
+    readonly property bool taskmgr: skinned && graphStyle === "taskmgr"
+    // geometry.gaugeShape "analog-dial": a round meter beside the CPU and GPU
+    // figures; the bars then draw in controls.meter
+    readonly property bool analogDial: skinned && gaugeShape === "analog-dial"
 
     // ---- gauges ----
     readonly property color gaugeTrack: sc("gaugeTrack", tint(dark ? 0.12 : 0.1))

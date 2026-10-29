@@ -29,6 +29,8 @@ Item {
     // fades out, swaps between names and numbers, and fades back in while
     // the width animates, so nothing jumps.
     property bool compact: false
+    // the terminal's [ BRACKETS ] round the current entry; not under a desktop OS's chrome
+    readonly property bool brackets: ["", "plain", "terminal", "kiroshi"].indexOf(Theme.chromeStyle) >= 0
     property bool ready: false
     Component.onCompleted: { compact = collapsed; ready = true }
     onCollapsedChanged: if (ready) swap.restart()
@@ -62,7 +64,7 @@ Item {
                 Layout.preferredWidth: 30
                 Layout.preferredHeight: 30
                 Layout.alignment: rail.compact ? Qt.AlignHCenter : Qt.AlignLeft
-                source: Theme.frame && Theme.frame.logo ? Theme.frame.logo : Theme.skinned ? "" : "../../assets/subetha-icon.svg"
+                source: Theme.frame && Theme.frame.logo ? Theme.frame.logo : Theme.skinned ? Theme.icon("app") : "../../assets/subetha-icon.svg"
                 sourceSize: Qt.size(60, 60)
             }
             Text {
@@ -106,6 +108,10 @@ Item {
                     required property var modelData
                     required property int index
                     readonly property bool current: rail.currentIndex === index
+                    // the skin's icon for the tab, if it has one
+                    readonly property string glyph: Theme.icon(({ overview: "app", sensors: "fan", processes: "process",
+                                                                  services: "service", network: "netDown", storage: "disk",
+                                                                  disks: "disk", settings: "settings" })[modelData.key] || "")
                     width: parent.width
                     height: rail.itemHeight
                     y: index * (rail.itemHeight + rail.itemSpacing)
@@ -116,14 +122,25 @@ Item {
                         visible: area.containsMouse && !entry.current
                         color: Theme.tint(0.07)
                     }
+                    Image {
+                        visible: entry.glyph !== ""
+                        x: rail.compact ? (parent.width - width) / 2 : 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenterOffset: -1
+                        width: 16; height: 16
+                        source: entry.glyph
+                        sourceSize: Qt.size(32, 32)
+                    }
                     Text {
+                        visible: !(rail.compact && entry.glyph !== "")
                         width: parent.width - 2; height: parent.height - 2
-                        leftPadding: rail.compact ? 0 : 10
+                        leftPadding: rail.compact ? 0 : entry.glyph !== "" ? 32 : 10
                         horizontalAlignment: rail.compact ? Text.AlignHCenter : Text.AlignLeft
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
                         text: rail.compact ? String(entry.index + 1)
-                            : entry.current ? "[ " + entry.modelData.label + " ]"
+                            : entry.current && rail.brackets ? "[ " + entry.modelData.label + " ]"
+                            : entry.glyph !== "" ? entry.modelData.label
                             : "  " + entry.modelData.label
                         color: entry.current ? Theme.ink : Theme.tint(0.7)
                         font { family: Theme.mono; features: Theme.figures; pixelSize: 12; bold: true; letterSpacing: 1.1 }

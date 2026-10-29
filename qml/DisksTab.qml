@@ -104,7 +104,7 @@ Flickable {
                             Layout.preferredHeight: 46
                             SparklineGraph { anchors.fill: parent; historyData: Theme.norm(drive.h.read, drive.peak); strokeColor: Theme.ink }
                             SparklineGraph { anchors.fill: parent; historyData: Theme.norm(drive.h.write, drive.peak)
-                                             strokeColor: Theme.cool; fillColor: "transparent" }
+                                             strokeColor: Theme.cool; fillColor: "transparent"; backdrop: false }
                         }
                         Text {
                             text: "I/O HISTORY, SCALE " + Theme.rate(drive.peak) + "  ·  " + drive.modelData.kname

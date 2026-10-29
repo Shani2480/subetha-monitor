@@ -44,6 +44,25 @@ ApplicationWindow {
     readonly property real frameRadius: maximized ? 0 : !Theme.skinned ? 12
                                       : frameShape === "rounded" ? Math.min(Theme.cornerRadius, 16) : frameShape === "stadium" ? 16 : 0
     property bool wasMaximized: false
+    // A skin's chrome (Theme.chrome) draws the window as its operating system
+    // would: its own corner radii top and bottom, or Kiroshi's cuts, and its
+    // frame colour and width.
+    readonly property bool chromed: Theme.chromeStyle !== "" && Theme.chromeStyle !== "plain" && Theme.chromeStyle !== "hud"   // hud: the skin's geometry
+    // the console frame's side wings, when the window is wide enough
+    readonly property bool wings: Theme.frameStyle === "console" && Theme.frame.pillars !== false && width >= 1100
+    readonly property string chromeShape: Theme.chromeStyle === "kiroshi" ? "chamfer" : "rounded"
+    readonly property real chromeTop: maximized ? 0 : Theme.chrome.topRadius ?? (({ luna: 8, aqua: 10, aero: 8, material: 24 })[Theme.chromeStyle] || 0)
+    readonly property real chromeBottom: maximized ? 0 : Theme.chrome.bottomRadius ?? (({ aqua: 10, aero: 8, material: 24 })[Theme.chromeStyle] || 0)
+    readonly property real chromeCut: maximized ? 0 : Theme.chamferCut
+    readonly property real chromeFrameWidth: maximized ? 0 : Theme.chrome.frameWidth ?? (({ luna: 3, aqua: 1, aero: 1, terminal: 1, kiroshi: 1.5 })[Theme.chromeStyle] || 0)
+    readonly property color chromeFrameColor: Theme.cc("frameColor", ({ luna: "#0046D5", aqua: Theme.dark ? "#000000" : "#B3B3B3",
+                                                                       aero: "#5A8FA8", kiroshi: Theme.accent })[Theme.chromeStyle] || Theme.border)
+    // the blinking █ after the commentary (controls.cursor)
+    property bool cursorOn: true
+    Timer { interval: 530; repeat: true; running: Theme.blinkCursor && win.visible; onTriggered: win.cursorOn = !win.cursorOn }
+    readonly property string cursor: Theme.blinkCursor ? (cursorOn ? " █" : "  ") : ""
+    // A Sidebar gadget's gear asks for Settings.
+    Connections { target: Theme; function onSettingsRequested() { win.showTab("settings") } }
 
     // The theme (light / dark, and the skin) changes under a snapshot of the
     // old look, which then fades out.
@@ -168,7 +187,7 @@ ApplicationWindow {
         anchors.bottomMargin: anchors.rightMargin
 
         ThemeShapeContainer {   // flat offset shadow (light)
-            visible: Theme.flatShadow && !win.maximized
+            visible: Theme.flatShadow && !win.maximized && !win.chromed
             x: 3; y: 3; width: parent.width; height: parent.height
             fillColor: Theme.skinned ? Theme.shadow : Theme.charcoal
             strokeWidth: 0
@@ -176,15 +195,25 @@ ApplicationWindow {
             borderStyle: "solid"; shadowType: "none"; cornerBrackets: false
         }
 
-        ThemeShapeContainer {
+        Item {
             id: frameMask
             anchors.fill: parent
-            fillColor: "white"
-            strokeWidth: 0
-            shapeType: win.frameShape; cornerRadius: win.frameRadius
-            borderStyle: "solid"; shadowType: "none"; cornerBrackets: false
             visible: false
             layer.enabled: true
+            ThemeShapeContainer {
+                visible: !win.chromed
+                anchors.fill: parent
+                fillColor: "white"
+                strokeWidth: 0
+                shapeType: win.frameShape; cornerRadius: win.frameRadius
+                borderStyle: "solid"; shadowType: "none"; cornerBrackets: false
+            }
+            ChromeFrameShape {
+                visible: win.chromed
+                anchors.fill: parent
+                fillColor: "white"
+                shapeType: win.chromeShape; topRadius: win.chromeTop; bottomRadius: win.chromeBottom; cut: win.chromeCut
+            }
         }
 
         // Everything inside, clipped to the round corners (square ones on
@@ -192,7 +221,9 @@ ApplicationWindow {
         Item {
             id: surface
             anchors.fill: parent
-            layer.enabled: (win.frameRadius > 0 || win.frameShape === "chamfer") && GraphicsInfo.api !== GraphicsInfo.Software
+            layer.enabled: (win.chromed ? win.chromeTop > 0 || win.chromeBottom > 0 || (win.chromeShape === "chamfer" && win.chromeCut > 0)
+                                        : win.frameRadius > 0 || win.frameShape === "chamfer")
+                           && GraphicsInfo.api !== GraphicsInfo.Software
             layer.effect: MultiEffect {
                 maskEnabled: true
                 maskSource: frameMask
@@ -218,6 +249,63 @@ ApplicationWindow {
                 visible: Theme.grid && Theme.skinned
                 color: Theme.onBg(Theme.ink)
             }
+            Rectangle {   // the candy box's pastel body
+                anchors.fill: parent
+                visible: Theme.frameStyle === "candy" && !!Theme.frame.rim
+                color: (Theme.frame || {}).rim || "transparent"
+            }
+            Image {   // the scrap frame's galvanized plating
+                anchors.fill: parent
+                visible: Theme.frameStyle === "scrap"
+                source: visible ? "components/textures/brushed.svg" : ""
+                sourceSize: Qt.size(240, 120)
+                fillMode: Image.Tile
+                opacity: 0.6
+            }
+            FrameParts.Plating { anchors.fill: parent; visible: Theme.frameStyle === "scrap" }
+            FrameParts.CandyEdge {   // sweets along the left, top and bottom edges
+                visible: Theme.frameStyle === "candy" && source != ""
+                anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                width: 22; vertical: true
+            }
+            FrameParts.CandyEdge {
+                visible: Theme.frameStyle === "candy" && source != ""
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                height: 22
+            }
+            FrameParts.CandyEdge {
+                visible: Theme.frameStyle === "candy" && source != ""
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: 22
+            }
+            Image {   // the skin's texture: carbon-fibre weave or brushed metal
+                anchors.fill: parent
+                visible: Theme.texture === "carbon" || Theme.texture === "brushed"
+                source: visible ? "components/textures/" + Theme.texture + ".svg" : ""
+                sourceSize: Theme.texture === "carbon" ? Qt.size(8, 8) : Qt.size(240, 120)
+                fillMode: Image.Tile
+                opacity: Theme.dark ? 0.55 : 0.35
+            }
+            // Glass: soft colour behind the translucent cards, blurred, so
+            // they read as frosted panes. A window can't blur the desktop
+            // behind it here, so the panes frost the window's own backdrop.
+            Item {
+                anchors.fill: parent
+                visible: Theme.fx.glassBlur
+                layer.enabled: visible
+                layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 64 }
+                Repeater {
+                    model: [{ x: 0.12, y: 0.25, r: 0.45, c: Theme.accent }, { x: 0.85, y: 0.15, r: 0.4, c: Theme.cool },
+                            { x: 0.6, y: 0.85, r: 0.5, c: Theme.commentary }]
+                    Rectangle {
+                        required property var modelData
+                        readonly property real d: Math.max(win.width, win.height) * modelData.r
+                        x: win.width * modelData.x - d / 2; y: win.height * modelData.y - d / 2
+                        width: d; height: d; radius: d / 2
+                        color: Theme.withAlpha(modelData.c, Theme.dark ? 0.22 : 0.18)
+                    }
+                }
+            }
 
             ColumnLayout {
                 anchors.fill: parent
@@ -234,16 +322,30 @@ ApplicationWindow {
                     onCloseRequested: win.close()
                 }
                 Rectangle {   // the rule under the title bar
+                    visible: !win.chromed || Theme.chromeStyle === "terminal" || Theme.chromeStyle === "kiroshi"
                     Layout.fillWidth: true
                     implicitHeight: Theme.skinned ? Math.max(1, Theme.borderWidth) : Theme.line
                     color: Theme.skinned ? Theme.border : Theme.dark ? Theme.tint(0.45) : Theme.charcoal
                 }
+                FrameMarquee { Layout.fillWidth: true }   // a built frame's name plate
 
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     spacing: 0
+                    // a CRT skin's curved glass (features.enableBarrel): the
+                    // content only, so the title bar's buttons stay where
+                    // they look; gentle, so clicks land near what they show
+                    layer.enabled: Theme.barrel && GraphicsInfo.api !== GraphicsInfo.Software
+                    layer.effect: ShaderEffect {
+                        property real curvature: 0.02
+                        fragmentShader: "components/shaders/barrel.frag.qsb"
+                    }
 
+                    FrameParts.Wing {   // the console's left wing, when there's room
+                        visible: win.wings
+                        Layout.fillHeight: true
+                    }
                     Item {   // the rail's slot, which it slides out of to the left
                         visible: win.navLeft > 0
                         Layout.fillHeight: true
@@ -327,7 +429,7 @@ ApplicationWindow {
                                     readonly property var plain: ["Telemetry refreshed every " + (telemetry.interval / 1000).toFixed(1) + " s."]
                                     readonly property var shown: skinLines.length ? skinLines : Theme.skinned ? plain : lines
                                     property int index: Math.floor(Math.random() * lines.length)
-                                    text: "> " + shown[index % shown.length]
+                                    text: "> " + shown[index % shown.length] + win.cursor
                                     Timer { interval: 14000; repeat: true; running: true
                                             onTriggered: quip.index = (quip.index + 1) % quip.lines.length }
                                 }
@@ -477,9 +579,10 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             spacing: 10
                             Rectangle { height: 1; Layout.fillWidth: true; Layout.maximumWidth: 18; color: Theme.skinned ? Theme.onBg(Theme.ink, 0.45) : Theme.tint(0.4) }
+                            CharacterVignette { vignette: Theme.vignette("footer"); size: 34 }
                             Text {
                                 Layout.fillWidth: true
-                                text: win.status || (Theme.quips.nominal || Theme.lex("statusLine", "ALL SYSTEMS MOSTLY HARMLESS.", "ALL SYSTEMS NOMINAL.")) + " CTRL+1-7 TABS, CTRL+T THEME."
+                                text: (win.status || (Theme.quips.nominal || Theme.lex("statusLine", "ALL SYSTEMS MOSTLY HARMLESS.", "ALL SYSTEMS NOMINAL.")) + " CTRL+1-7 TABS, CTRL+T THEME.") + win.cursor
                                 color: win.status ? Theme.onBg(win.statusOk ? Theme.cool : Theme.alert)
                                                   : Theme.skinned ? Theme.onBg(Theme.ink, 0.65) : Theme.tint(0.5)
                                 elide: Text.ElideRight
@@ -495,6 +598,21 @@ ApplicationWindow {
                             }
                         }
                     }
+                    FrameParts.Wing {   // ...and its right one
+                        visible: win.wings
+                        Layout.fillHeight: true
+                        onRight: true
+                    }
+                }
+                FrameParts.Conduit {   // the console's bottom pipe, lit with the CPU's load
+                    visible: Theme.frameStyle === "console" && !!Theme.frame.rail
+                    Layout.fillWidth: true
+                    load: ((win.t.cpu || {}).usage || 0) / 100
+                }
+                FrameParts.Toolbelt {   // the scrap frame's workbench rail
+                    visible: Theme.frameStyle === "scrap" && source != ""
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 34
                 }
             }
 
@@ -504,10 +622,21 @@ ApplicationWindow {
         // ---- the outline: a phosphor rule with a soft inner glow, or a charcoal one ----
         ThemeShapeContainer {   // ...or the skin's border, in its card shape
             anchors.fill: parent
-            visible: Theme.skinned && !win.maximized
+            visible: Theme.skinned && !win.maximized && !win.chromed && Theme.frameStyle !== "candy"
             shapeType: win.frameShape; cornerRadius: win.frameRadius
             shadowType: "none"
             cornerBrackets: false             // ThemeEffectsLayer draws them
+        }
+        FrameParts.WavyBorder {   // ...or the candy box's wavy ink line
+            anchors.fill: parent
+            visible: Theme.frameStyle === "candy" && !win.maximized
+        }
+        ChromeFrameShape {   // ...or the chrome's frame: Luna's 3px blue, macOS's hairline
+            anchors.fill: parent
+            visible: win.chromed && win.chromeFrameWidth > 0
+            shapeType: win.chromeShape; topRadius: win.chromeTop; bottomRadius: win.chromeBottom; cut: win.chromeCut
+            strokeColor: win.chromeFrameColor
+            strokeWidth: win.chromeFrameWidth
         }
         Rectangle {
             anchors.fill: parent
