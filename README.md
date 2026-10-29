@@ -95,9 +95,11 @@ critical, `[CRITICAL: 88°C]` blinks, the card is haloed with a breathing
 crimson glow, and its bar strobes (temperature) or pulses (load). The
 thresholds have the widget's defaults: 75 / 85 °C for temperatures and
 90 / 95 / 90 % for CPU, GPU and memory load. A disk is critical at 90 %
-full. All of them, and switches for the colours and the motion, are in
-Settings → Alerts and saved as `alertsEnabled`, `enablePulsingAnimations`
-and `…Threshold` keys in the config file. The two apps don't share these
+full. A temperature or load level shows only once the reading has held it
+for 3 s (`alertHoldSeconds`, 0 for at once), and clears as slowly; disks
+alert at once. All of them, and switches for the colours and the motion, are
+in Settings → Alerts and saved as `alertsEnabled`, `enablePulsingAnimations`,
+`alertHoldSeconds` and `…Threshold` keys in the config file. The two apps don't share these
 settings: each keeps its own.
 
 ## How it reads

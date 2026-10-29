@@ -15,7 +15,7 @@ QtObject {
 
     readonly property bool enabled: settings.alertsEnabled
     readonly property bool motion: enabled && settings.enablePulsingAnimations
-    readonly property int holdMs: 3000    // how long a reading must stay at a level before it shows
+    readonly property int holdMs: settings.alertHoldSeconds * 1000   // how long a reading must stay at a level before it shows
 
     function tempLevel(kind, celsius) {
         if (!enabled || !(celsius > 0)) return 0

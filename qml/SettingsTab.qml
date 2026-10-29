@@ -304,7 +304,8 @@ Flickable {
             ThresholdRow { label: "GPU LOAD CRITICAL"; key: "gpuLoadCritThreshold"; unit: "%"; from: 50; to: 100 }
             ThresholdRow { label: "MEMORY CRITICAL"; key: "ramLoadCritThreshold"; unit: "%"; from: 50; to: 100 }
             ThresholdRow { label: "DISK FULL CRITICAL"; key: "diskCritThreshold"; unit: "%"; from: 50; to: 100 }
-            Note { text: "A warning shows [WARN] on the card and colours its figure amber. A critical reading blinks [CRITICAL], haloes its card and strobes or pulses its bar. A warning above its critical level is never reached: keep warning below critical." }
+            ThresholdRow { label: "ALERT AFTER"; key: "alertHoldSeconds"; unit: "s"; from: 0; to: 30 }
+            Note { text: "A warning shows [WARN] on the card and colours its figure amber. A critical reading blinks [CRITICAL], haloes its card and strobes or pulses its bar. A reading must stay past a threshold for ALERT AFTER seconds before its level shows, and back below it as long before the level clears (0: at once); disks alert at once. A warning above its critical level is never reached: keep warning below critical." }
         }
 
         // ---- skin ----

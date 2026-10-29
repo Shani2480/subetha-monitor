@@ -57,14 +57,15 @@ DEFAULTS = {
     "cpuTempWarnThreshold": 75, "cpuTempCritThreshold": 85,
     "gpuTempWarnThreshold": 75, "gpuTempCritThreshold": 85,
     "cpuLoadCritThreshold": 90, "gpuLoadCritThreshold": 95, "ramLoadCritThreshold": 90,
-    "diskCritThreshold": 90,
+    "diskCritThreshold": 90, "alertHoldSeconds": 3,
 }
 TEMP_RANGE = (40, 110)                  # alert thresholds, °C
 LOAD_RANGE = (50, 100)                  # alert thresholds, %
 THRESHOLDS = {"cpuTempWarnThreshold": TEMP_RANGE, "cpuTempCritThreshold": TEMP_RANGE,
               "gpuTempWarnThreshold": TEMP_RANGE, "gpuTempCritThreshold": TEMP_RANGE,
               "cpuLoadCritThreshold": LOAD_RANGE, "gpuLoadCritThreshold": LOAD_RANGE,
-              "ramLoadCritThreshold": LOAD_RANGE, "diskCritThreshold": LOAD_RANGE}
+              "ramLoadCritThreshold": LOAD_RANGE, "diskCritThreshold": LOAD_RANGE,
+              "alertHoldSeconds": (0, 30)}
 
 
 class Settings(QObject):
@@ -211,6 +212,7 @@ class Settings(QObject):
     gpuLoadCritThreshold = _threshold("gpuLoadCritThreshold")
     ramLoadCritThreshold = _threshold("ramLoadCritThreshold")
     diskCritThreshold = _threshold("diskCritThreshold")
+    alertHoldSeconds = _threshold("alertHoldSeconds")
 
     dark = Property(bool, lambda self: self._dark, notify=darkChanged)
     startTab = Property(str, lambda self: self._start_tab, constant=True)
