@@ -60,6 +60,7 @@ Item {
     }
     readonly property real tempOpacity: hot ? 0.95 * strobe : warm ? 0.5 : Theme.dark ? 0.35 : 0.3
 
+    property string metric: ""          // the skin's meter colour for it (DynamicMetricGauge.metric)
     implicitWidth: 160
     implicitHeight: segmentHeight
 
@@ -68,6 +69,7 @@ Item {
         value: bar.usageFraction
         secondary: bar.tempValue > 0 ? bar.tempFraction : -1
         fillColor: bar.loadColor
+        metric: bar.metric
         secondaryColor: bar.tempColor
         secondaryOpacity: bar.tempOpacity
         segments: bar.segments

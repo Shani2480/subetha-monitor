@@ -11,6 +11,7 @@ Shape {
     property real topRadius: 8
     property real bottomRadius: 0
     property real cut: 14
+    property var corners: ["tl", "br"]               // which corners a chamfer cuts
     property color fillColor: "transparent"
     property color strokeColor: "transparent"
     property real strokeWidth: 0
@@ -22,9 +23,11 @@ Shape {
     readonly property real tr: Math.max(0, Math.min(topRadius - i, height / 2))
     readonly property real br: Math.max(0, Math.min(bottomRadius - i, height / 2))
     readonly property real c: Math.max(0, cut - i)
+    function k(corner) { return corners.indexOf(corner) >= 0 ? c : 0 }
     readonly property string path: shapeType === "chamfer"
-        ? "M " + (i + c) + " " + i + " L " + w + " " + i + " L " + w + " " + (h - c)
-          + " L " + (w - c) + " " + h + " L " + i + " " + h + " L " + i + " " + (i + c) + " Z"
+        ? "M " + (i + k("tl")) + " " + i + " L " + (w - k("tr")) + " " + i + " L " + w + " " + (i + k("tr"))
+          + " L " + w + " " + (h - k("br")) + " L " + (w - k("br")) + " " + h
+          + " L " + (i + k("bl")) + " " + h + " L " + i + " " + (h - k("bl")) + " L " + i + " " + (i + k("tl")) + " Z"
         : "M " + (i + tr) + " " + i + " L " + (w - tr) + " " + i
           + (tr > 0 ? " A " + tr + " " + tr + " 0 0 1 " + w + " " + (i + tr) : "")
           + " L " + w + " " + (h - br)

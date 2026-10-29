@@ -95,6 +95,7 @@ Flickable {
                         SegmentBar {
                             Layout.fillWidth: true
                             fraction: drive.modelData.percent / 100
+                            metric: "disk"
                             fill: drive.level === 2 ? Theme.critColor : Theme.load(drive.modelData.percent)
                             segments: 32
                             segmentHeight: 14

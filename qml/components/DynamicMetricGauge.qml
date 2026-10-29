@@ -27,11 +27,18 @@ Item {
     property real value: 0                         // 0..1
     property real secondary: -1                    // 0..1; < 0: none
     property color fillColor: Theme.gaugeLoad(value * 100)
+    // what it measures (cpu, gpu, memory, swap, disk, battery): the skin's
+    // controls.meterColors fills it while the reading is nominal
+    property string metric: ""
+    readonly property color skinFill: Theme.meterColor(metric)
+    readonly property color paint: nominal && skinFill.a > 0 ? skinFill : fillColor
     property color secondaryColor: Theme.gaugeTemp
     property real secondaryOpacity: 0.35
     property color trackColor: Theme.gaugeTrack
     property string shape: Theme.skinned ? Theme.gaugeShape || "segmented" : "segmented"
     property int segments: 24
+    // a skin's geometry.segments sets every segmented bar's block count
+    readonly property int blocks: Theme.skinned && Theme.geo.segments ? Theme.geo.segments : segments
     property bool glow: false
     property real glowOpacity: 1
     property color glowColor: Theme.critColor
@@ -84,19 +91,19 @@ Item {
         Row {
             id: row
             spacing: 2
-            readonly property int lit: Math.round(gauge.v * gauge.segments)
-            readonly property int washed: Math.round(gauge.s * gauge.segments)
+            readonly property int lit: Math.round(gauge.v * gauge.blocks)
+            readonly property int washed: Math.round(gauge.s * gauge.blocks)
             Repeater {
-                model: gauge.segments
+                model: gauge.blocks
                 Rectangle {
                     required property int index
                     readonly property bool on: index < row.lit
-                    width: (gauge.width - row.spacing * (gauge.segments - 1)) / gauge.segments
+                    width: (gauge.width - row.spacing * (gauge.blocks - 1)) / gauge.blocks
                     height: gauge.height
                     radius: Theme.small(Math.min(2, height / 2))
                     color: gauge.outlined ? "transparent" : gauge.trackColor
                     border.width: gauge.outlined ? 1 : 0
-                    border.color: on ? gauge.fillColor : Theme.tint(Theme.dark ? 0.3 : 0.45)
+                    border.color: on ? gauge.paint : Theme.tint(Theme.dark ? 0.3 : 0.45)
                     Rectangle {   // the secondary wash, behind
                         visible: gauge.hasSecondary && index < row.washed
                         anchors.fill: parent
@@ -108,7 +115,7 @@ Item {
                         visible: parent.on
                         anchors { fill: parent; margins: !gauge.hasSecondary ? 0 : parent.height >= 7 ? 2 : 1 }
                         radius: gauge.hasSecondary ? Theme.small(1) : parent.radius
-                        color: gauge.fillColor
+                        color: gauge.paint
                     }
                 }
             }
@@ -120,21 +127,21 @@ Item {
         id: asciiBar
         Row {
             id: cells
-            readonly property int lit: Math.round(gauge.v * gauge.segments)
-            readonly property int washed: Math.round(gauge.s * gauge.segments)
+            readonly property int lit: Math.round(gauge.v * gauge.blocks)
+            readonly property int washed: Math.round(gauge.s * gauge.blocks)
             Repeater {
-                model: gauge.segments
+                model: gauge.blocks
                 Text {
                     required property int index
                     readonly property bool on: index < cells.lit
                     readonly property bool wash: !on && gauge.hasSecondary && index < cells.washed
-                    width: gauge.width / gauge.segments
+                    width: gauge.width / gauge.blocks
                     height: gauge.height
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     text: on ? "█" : wash ? "▒" : "░"
                     // unlit cells are the same phosphor, dimmed, as on a real terminal
-                    color: on ? gauge.fillColor : wash ? gauge.secondaryColor : gauge.fillColor
+                    color: on ? gauge.paint : wash ? gauge.secondaryColor : gauge.paint
                     opacity: on ? 1 : wash ? Math.max(0.5, gauge.secondaryOpacity) : 0.35
                     font { family: Theme.mono; pixelSize: Math.max(8, gauge.height * 1.6) }
                 }
@@ -157,7 +164,7 @@ Item {
                 width: parent.width * gauge.v
                 height: gauge.hasSecondary ? Math.max(2, parent.height * 0.6) : parent.height
                 anchors.verticalCenter: parent.verticalCenter
-                color: gauge.fillColor
+                color: gauge.paint
             }
         }
     }
@@ -180,7 +187,7 @@ Item {
                 visible: gauge.v > 0
                 width: Math.max(parent.height, parent.width * gauge.v); height: parent.height
                 radius: height / 2
-                color: gauge.fillColor
+                color: gauge.paint
                 Rectangle {   // the specular: a soft white sheen over the top half
                     anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1 }
                     height: parent.height / 2
@@ -224,7 +231,7 @@ Item {
             }
             Item {
                 width: parent.width * gauge.v; height: parent.height; clip: true
-                Cut { width: ch.width; height: ch.height; fill: gauge.fillColor }
+                Cut { width: ch.width; height: ch.height; fill: gauge.paint }
             }
         }
     }
@@ -271,7 +278,7 @@ Item {
                     ctx.stroke()
                 }
                 if (end > lw / 2) {                         // the wave
-                    ctx.strokeStyle = gauge.fillColor
+                    ctx.strokeStyle = gauge.paint
                     ctx.beginPath()
                     var period = Math.max(12, h * 2.6)
                     for (var x = lw / 2; x <= end; x += 1) {
@@ -289,8 +296,9 @@ Item {
     // the skin's meter gradient while the reading is nominal, else the
     // level's colour shaded the same way.
     readonly property bool nominal: Qt.colorEqual(fillColor, Theme.gaugeUsage) || Qt.colorEqual(fillColor, Theme.high)
-    readonly property color glassTop: nominal ? Theme.ctl("meterFillTop", Qt.lighter(fillColor, 1.45)) : Qt.lighter(fillColor, 1.45)
-    readonly property color glassBottom: nominal ? Theme.ctl("meterFillBottom", fillColor) : fillColor
+    readonly property bool ownFill: nominal && skinFill.a > 0
+    readonly property color glassTop: nominal && !ownFill ? Theme.ctl("meterFillTop", Qt.lighter(paint, 1.45)) : Qt.lighter(paint, 1.45)
+    readonly property color glassBottom: nominal && !ownFill ? Theme.ctl("meterFillBottom", paint) : paint
     component Glass: Rectangle {
         property color lit: gauge.glassTop
         property color deep: gauge.glassBottom
@@ -353,7 +361,7 @@ Item {
             readonly property int lit: Math.round(gauge.v * cells)
             TextMetrics { id: metrics; font: brackets.font; text: "|" }
             verticalAlignment: Text.AlignVCenter
-            color: gauge.fillColor
+            color: gauge.paint
             textFormat: Text.PlainText
             text: "[" + "|".repeat(lit) + ".".repeat(cells - lit) + "] " + pct
             font { family: Theme.mono; features: Theme.figures; pixelSize: pixel }
@@ -408,7 +416,7 @@ Item {
                     width: (gauge.width - slants.spacing * (slants.count - 1)) / slants.count
                     height: gauge.height
                     antialiasing: true
-                    color: index < slants.lit ? gauge.fillColor
+                    color: index < slants.lit ? gauge.paint
                          : gauge.hasSecondary && index < slants.washed ? Qt.tint(gauge.trackColor, Theme.withAlpha(gauge.secondaryColor, gauge.secondaryOpacity))
                          : gauge.trackColor
                     // a shear: the top leans right
@@ -445,7 +453,7 @@ Item {
                         var w = width * gauge.v, h = height
                         if (w <= 0) return
                         var wob = Math.min(4, h * 0.35)
-                        ctx.fillStyle = gauge.fillColor
+                        ctx.fillStyle = gauge.paint
                         ctx.beginPath()
                         ctx.moveTo(0, 0)
                         for (var y = 0; y <= h; y += 1)
@@ -475,7 +483,7 @@ Item {
                 id: drop
                 width: Math.max(3, tube.height * 0.35); height: width * 1.25; radius: width / 2
                 x: tube.width * gauge.v - width
-                color: gauge.fillColor
+                color: gauge.paint
                 visible: gauge.v > 0.05 && opacity > 0
                 opacity: 0
                 SequentialAnimation {

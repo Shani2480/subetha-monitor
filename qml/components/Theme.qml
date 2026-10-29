@@ -76,6 +76,7 @@ QtObject {
     readonly property color commentary: sc("commentary", accent)
     readonly property color cardHover:  sc("cardBackgroundHover", tint(0.05))
     readonly property color border:     sc("border", dark ? tint(0.55) : ink)
+    readonly property color borderActive: sc("borderActive", border)    // a hovered card's
     readonly property color shadow:     sc("shadowColor", dark ? tint(0.4) : ink)
     readonly property color badgeInk:   variant && variant.badgeTextColor ? variant.badgeTextColor
                                       : skin && skin.badgeTextColor ? skin.badgeTextColor : dark ? badge : ink
@@ -118,6 +119,8 @@ QtObject {
     function shapeOf(role) { return role === "pill" ? pillShape : role === "gauge" ? ({ segmented: "sharp", flat: "sharp", "analog-dial": "sharp" })[gaugeShape] || gaugeShape : cardShape }
     function radiusOf(role) { return role === "pill" ? pillCornerRadius : role === "gauge" ? 2 : cornerRadius }
     function chamferOf(role) { return role === "card" ? chamferCut : pillChamferCut }
+    // the corners a chamfer cuts (geometry.chamferCorners); empty, each shape's own
+    readonly property var chamferCorners: geo && geo.chamferCorners ? geo.chamferCorners : []
 
     // A skin names its fonts as a list (skins.js); the first installed one is
     // used, after any the skin ships itself (`fontFiles`) have loaded. Tables
@@ -182,6 +185,7 @@ QtObject {
     readonly property bool groupBands: sections.style === "groupband"
     readonly property bool gadgets: sections.style === "gadget"          // Vista Sidebar gadgets
     readonly property bool screws: !!sections.screws                     // a mounting screw in each card corner
+    readonly property bool flagTabs: sections.style === "flagtab"        // a numbered accent flag over each card
     // a card's own surface (sections.tints), by its key (cpu, gpu, memory, network, disk)
     function tintOf(key) {
         var v = variant && variant.tints && variant.tints[key] ? variant.tints[key]
@@ -189,7 +193,10 @@ QtObject {
         return v ? v : card
     }
     // hero illustrations for the cards' free corners, and characters with speech bubbles
-    readonly property var art: skin && skin.art ? skin.art : ({})
+    // (a variant's own art over the skin's: night and day heroes)
+    readonly property var art: Object.assign({}, skin && skin.art ? skin.art : {}, variant && variant.art ? variant.art : {})
+    // a mark, a label and a tracked motto along the window's status line
+    readonly property var footer: skin && skin.footer ? skin.footer : null
     function vignette(at) { return skin && skin.vignettes ? skin.vignettes.find(function (v) { return v.at === at }) || null : null }
     // thick ink outlines and flat offset shadows on everything
     readonly property bool cartoon: !!skin && feature("cartoonOutlines", false) === true
@@ -204,8 +211,15 @@ QtObject {
     readonly property bool blinkCursor: !!controls.cursor
     readonly property string dialStyle: controls.dialStyle || "round"
     readonly property bool coreTraces: skinned && controls.coreGraph === "multi"
+    // a meter's own fill by what it measures (controls.meterColors, the variant's over the skin's)
+    function meterColor(key) {
+        if (!skin || !key) return "transparent"
+        var v = variant && variant.meterColors && variant.meterColors[key] ? variant.meterColors[key]
+              : skin.controls && skin.controls.meterColors ? skin.controls.meterColors[key] : ""
+        return v ? v : "transparent"
+    }
     function coreColor(i) { var c = controls.coreColors || []; return c.length ? c[i % c.length] : ink }
-    readonly property var icons: skin && skin.icons ? skin.icons : ({})
+    readonly property var icons: Object.assign({}, skin && skin.icons ? skin.icons : {}, variant && variant.icons ? variant.icons : {})   // a variant's over the skin's
     function icon(key) { return icons[key] || "" }
     readonly property bool barrel: !!skin && feature("barrel", false) === true
     readonly property string texture: skin && skin.features && skin.features.texture ? skin.features.texture : ""

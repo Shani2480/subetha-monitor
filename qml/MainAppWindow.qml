@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Effects
 import QtQuick.Layouts
+import QtQuick.Shapes
 import "components"
 
 // The monitor's window, frameless: its own title bar (planet, name, theme
@@ -195,24 +196,41 @@ ApplicationWindow {
             borderStyle: "solid"; shadowType: "none"; cornerBrackets: false
         }
 
+        // The outline `surface` is clipped to. Drawn by the geometry renderer:
+        // a curve-rendered shape in this hidden layer loses its geometry once
+        // anything renders the window off screen (the theme snapshot's
+        // grabToImage), which clipped the whole window away until a restart.
+        // Multisampled for smooth corners.
         Item {
             id: frameMask
             anchors.fill: parent
             visible: false
             layer.enabled: true
-            ThemeShapeContainer {
-                visible: !win.chromed
+            layer.samples: 4
+            ThemeShapeContainer {   // only its outline()
+                id: frameOutline
+                visible: false
                 anchors.fill: parent
-                fillColor: "white"
                 strokeWidth: 0
                 shapeType: win.frameShape; cornerRadius: win.frameRadius
                 borderStyle: "solid"; shadowType: "none"; cornerBrackets: false
             }
-            ChromeFrameShape {
-                visible: win.chromed
+            ChromeFrameShape {      // only its path
+                id: chromeOutline
+                visible: false
                 anchors.fill: parent
-                fillColor: "white"
                 shapeType: win.chromeShape; topRadius: win.chromeTop; bottomRadius: win.chromeBottom; cut: win.chromeCut
+                corners: Theme.chamferCorners.length ? Theme.chamferCorners : ["tl", "br"]
+            }
+            Shape {
+                anchors.fill: parent
+                preferredRendererType: Shape.GeometryRenderer
+                ShapePath {
+                    fillColor: "white"
+                    strokeColor: "transparent"
+                    strokeWidth: -1
+                    PathSvg { path: win.chromed ? chromeOutline.path : frameOutline.outline(0) }
+                }
             }
         }
 
@@ -580,6 +598,24 @@ ApplicationWindow {
                             spacing: 10
                             Rectangle { height: 1; Layout.fillWidth: true; Layout.maximumWidth: 18; color: Theme.skinned ? Theme.onBg(Theme.ink, 0.45) : Theme.tint(0.4) }
                             CharacterVignette { vignette: Theme.vignette("footer"); size: 34 }
+                            Row {   // the skin's footer: its mark and label...
+                                visible: !!Theme.footer
+                                spacing: 6
+                                Image {
+                                    visible: source != ""
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: 16; width: height * implicitWidth / Math.max(1, implicitHeight)   // a wordmark keeps its width
+                                    source: Theme.footer && Theme.footer.mark ? Theme.footer.mark : ""
+                                    sourceSize.height: 32
+                                    fillMode: Image.PreserveAspectFit
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: Theme.footer && Theme.footer.label ? Theme.footer.label.toUpperCase() : ""
+                                    color: Theme.onBg(Theme.ink)
+                                    font { family: Theme.sans; pixelSize: 11; bold: true; letterSpacing: 1.5 }
+                                }
+                            }
                             Text {
                                 Layout.fillWidth: true
                                 text: (win.status || (Theme.quips.nominal || Theme.lex("statusLine", "ALL SYSTEMS MOSTLY HARMLESS.", "ALL SYSTEMS NOMINAL.")) + " CTRL+1-7 TABS, CTRL+T THEME.") + win.cursor
@@ -587,6 +623,20 @@ ApplicationWindow {
                                                   : Theme.skinned ? Theme.onBg(Theme.ink, 0.65) : Theme.tint(0.5)
                                 elide: Text.ElideRight
                                 font { family: Theme.mono; features: Theme.figures; pixelSize: 11; bold: win.status !== "" }
+                            }
+                            Text {   // ...and its motto, tracked wide
+                                visible: text !== ""
+                                text: Theme.footer && Theme.footer.motto ? Theme.footer.motto : ""
+                                color: Theme.onBg(Theme.inkSoft)
+                                font { family: Theme.sans; pixelSize: 10; letterSpacing: 3 }
+                            }
+                            Image {   // the footer's second mark, at the far end
+                                visible: source != ""
+                                Layout.preferredHeight: 18
+                                Layout.preferredWidth: 18 * implicitWidth / Math.max(1, implicitHeight)
+                                source: Theme.footer && Theme.footer.endMark ? Theme.footer.endMark : ""
+                                sourceSize.height: 36
+                                fillMode: Image.PreserveAspectFit
                             }
                             Text {
                                 id: clock
@@ -635,6 +685,7 @@ ApplicationWindow {
             anchors.fill: parent
             visible: win.chromed && win.chromeFrameWidth > 0
             shapeType: win.chromeShape; topRadius: win.chromeTop; bottomRadius: win.chromeBottom; cut: win.chromeCut
+            corners: Theme.chamferCorners.length ? Theme.chamferCorners : ["tl", "br"]
             strokeColor: win.chromeFrameColor
             strokeWidth: win.chromeFrameWidth
         }

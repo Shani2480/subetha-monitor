@@ -23,6 +23,15 @@ import "."
 // the card: its tint (sections.tints), its hero illustration (art), shown at
 // the title row's right, and a character with a speech bubble (vignettes) in
 // its bottom-right corner. sections.screws puts a screw in each corner.
+// Under "flagtab" the title is a solid accent flag with a 45° right edge
+// holding sections.flagMark and the title, "N — " before it when
+// sections.numbered (N the card's place in its tab), and an angled
+// "[ - ]" pill at the top right folds the card. sections.numbered numbers
+// any card's title; sections.lights "traffic" puts red, amber and green
+// dots before it; sections.toggle draws the fold as an angled pill, a
+// glossy glass button or an inked box; sections.gloss lays a glass card's
+// curved sheen over its top. A hovered card's border is
+// the skin's borderActive.
 Item {
     id: card
 
@@ -30,7 +39,9 @@ Item {
     property string subtitle: ""
     property string status: ""            // right of the title, in regular weight
     property string icon: ""              // a key of Theme.icons
-    property bool collapsed: false        // a gadget folded by its close box
+    property bool collapsed: false        // a gadget folded by its close box, a flag tab by its pill
+    readonly property bool guideCard: true    // found by the cards counting their places in a tab
+    property int number: 0                // the card's place in its tab, from 1 (flag tabs; 0 counts it)
     property string section: ""           // cpu, gpu, memory, network, disk
     // the card's surface and text that reads on it (a tint may be darker than the skin's text expects)
     readonly property color face: section ? Theme.tintOf(section) : Theme.card
@@ -46,10 +57,40 @@ Item {
     property int alertLevel: 0            // 0 nominal, 1 warning, 2 critical
     property string alertFigure: ""       // the reading in [CRITICAL: ...]
     property bool live: true              // on screen: gates the halo's breathing and the badge's blink
-    property color borderColor: Theme.skinned ? Theme.border : Theme.dark ? Theme.tint(0.55) : Theme.ink
+    property color borderColor: Theme.skinned ? (hover.hovered ? Theme.borderActive : Theme.border)
+                                              : Theme.dark ? Theme.tint(0.55) : Theme.ink
     default property alias content: body.data
     property alias header: headerSlot.data
     property alias spacing: body.spacing
+
+    HoverHandler { id: hover }
+
+    // the card's place among the titled, visible cards of its tab (whose root has `shown`)
+    property int place: 0
+    function count() {
+        if (!Theme.sections.numbered || number > 0) return
+        var tab = card.parent
+        while (tab && tab.shown === undefined) tab = tab.parent
+        if (!tab) return
+        var n = 0, found = 0
+        ;(function walk(item) {
+            if (found) return
+            if (item.guideCard === true && item.visible && item.title !== "") {
+                n++
+                if (item === card) { found = n; return }
+            }
+            for (var i = 0; i < item.children.length && !found; i++) walk(item.children[i])
+        })(tab)
+        place = found
+    }
+    onVisibleChanged: Qt.callLater(count)
+    Connections { target: Theme; function onSectionsChanged() { Qt.callLater(card.count) } }
+    Component.onCompleted: Qt.callLater(count)
+    readonly property string flagText: {
+        var t = Theme.sections.uppercase !== false ? title.toUpperCase() : title
+        var n = number > 0 ? number : place
+        return Theme.sections.numbered && n > 0 ? n + " \u2014 " + t : t
+    }
 
     implicitWidth: column.implicitWidth + padding * 2 + 2
     implicitHeight: column.implicitHeight + padding * 2 + 2
@@ -89,7 +130,9 @@ Item {
         id: shaped
         visible: Theme.skinned
         anchors.fill: parent
-        fillColor: card.glass ? Theme.withAlpha(Theme.card, Theme.gadgets ? 0.82 : 0.72) : card.section ? Theme.tintOf(card.section) : Theme.card
+        // glass: the skin's own translucency, or the Guide's
+        fillColor: card.glass ? (Theme.card.a < 1 ? Theme.card : Theme.withAlpha(Theme.card, Theme.gadgets ? 0.82 : 0.72))
+                              : card.section ? Theme.tintOf(card.section) : Theme.card
         strokeColor: card.borderColor
         cornerBrackets: card.reticles && Theme.cornerBrackets
     }
@@ -154,7 +197,7 @@ Item {
         }
         Shape {
             id: gloss
-            visible: Theme.gadgets
+            visible: Theme.gadgets || Theme.sections.gloss > 0
             anchors.fill: parent
             preferredRendererType: Shape.CurveRenderer
             readonly property real r: Math.min(Theme.outerRadius, height / 2)
@@ -201,8 +244,59 @@ Item {
             Layout.fillWidth: true
             Layout.bottomMargin: Theme.groupBands ? card.padding * 0.5 : 0
             spacing: 10
+            Item {   // the flag tab: an accent flag cut at 45° on its right, mark and title in white
+                visible: Theme.flagTabs && card.title !== ""
+                Layout.alignment: Qt.AlignTop
+                implicitWidth: flagRow.implicitWidth + 12 + height
+                implicitHeight: 26
+                Shape {
+                    id: flag
+                    anchors.fill: parent
+                    preferredRendererType: Shape.CurveRenderer
+                    ShapePath {
+                        fillColor: Theme.sec("bandColor", Theme.accent)
+                        strokeWidth: Theme.cartoon ? 2 : 0
+                        strokeColor: Theme.cartoon ? "#000000" : "transparent"
+                        PathSvg { path: `M 0 0 H ${flag.width} L ${flag.width - flag.height} ${flag.height} H 0 Z` }
+                    }
+                }
+                Row {
+                    id: flagRow
+                    x: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 7
+                    Image {
+                        visible: source != ""
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 14; height: 14
+                        source: Theme.flagTabs && Theme.sections.flagMark ? Theme.sections.flagMark : ""
+                        sourceSize: Qt.size(28, 28)
+                        fillMode: Image.PreserveAspectFit
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: card.flagText
+                        color: Theme.sec("bandText", "#FFFFFF")
+                        font { family: Theme.sans; pixelSize: 13; bold: true; letterSpacing: 1.5 }
+                    }
+                }
+            }
+            Row {   // traffic lights: close, minimize, zoom
+                visible: Theme.sections.lights === "traffic" && !Theme.flagTabs && card.title !== ""
+                Layout.alignment: Qt.AlignVCenter
+                spacing: 6
+                Repeater {
+                    model: [["#FF5F56", "#E0443E"], ["#FFBD2E", "#DEA123"], ["#27C93F", "#1AAB29"]]
+                    Rectangle {
+                        required property var modelData
+                        width: 10; height: 10; radius: 5
+                        color: modelData[0]
+                        border { width: 0.5; color: modelData[1] }
+                    }
+                }
+            }
             Image {
-                visible: source != ""
+                visible: source != "" && !Theme.flagTabs
                 Layout.alignment: Qt.AlignTop
                 Layout.preferredWidth: Theme.groupBands ? 20 : 24
                 Layout.preferredHeight: Layout.preferredWidth
@@ -224,16 +318,18 @@ Item {
                         live: card.live
                     }
                     Text {
+                        visible: !Theme.flagTabs
                         Layout.fillWidth: true
-                        text: (Theme.groupBands || Theme.gadgets) && Theme.sections.uppercase !== false ? card.title.toUpperCase() : card.title
+                        text: Theme.sections.numbered ? card.flagText
+                            : (Theme.groupBands || Theme.gadgets) && Theme.sections.uppercase !== false ? card.title.toUpperCase() : card.title
                         color: Theme.groupBands ? Theme.sec("bandText", Theme.ink) : Theme.gadgets ? Theme.sec("bandText", "#FFFFFF") : card.readable(Theme.ink)
                         elide: Text.ElideRight
                         style: Theme.gadgets ? Text.Raised : Text.Normal
                         styleColor: "#000000"
                         font {
                             family: Theme.sans; bold: true
-                            pixelSize: Theme.groupBands ? (Theme.sections.titleSize || 11) : 14
-                            letterSpacing: Theme.groupBands ? 0 : 1.2
+                            pixelSize: Theme.groupBands ? (Theme.sections.titleSize || 11) : Theme.sections.titleSize ? Theme.sections.titleSize + 2 : 14
+                            letterSpacing: Theme.groupBands || Theme.sections.uppercase === false ? 0 : 1.2
                         }
                     }
                     Text {
@@ -262,6 +358,70 @@ Item {
                 fillMode: Image.PreserveAspectFit
             }
             Row { id: headerSlot; spacing: 14; Layout.alignment: Qt.AlignTop | Qt.AlignRight }
+            Item {   // the fold toggle: an angled outlined pill (flag tabs), a glass button, an inked box
+                id: toggle
+                readonly property string kind: Theme.sections.toggle || (Theme.flagTabs ? "angled" : "")
+                visible: kind !== ""
+                Layout.alignment: Qt.AlignTop | Qt.AlignRight
+                implicitWidth: foldText.implicitWidth + 14 + height
+                implicitHeight: 20
+                Rectangle {   // glass: a rounded Aero button, a gloss over its top half
+                    visible: toggle.kind === "glass"
+                    anchors.fill: parent
+                    radius: 5
+                    border { width: 1; color: Theme.dark ? Qt.rgba(0.7, 0.9, 1, 0.45) : Qt.rgba(0.2, 0.4, 0.5, 0.45) }
+                    gradient: Gradient {
+                        GradientStop { position: 0; color: Qt.rgba(1, 1, 1, foldArea.containsMouse ? 0.5 : 0.32) }
+                        GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, foldArea.containsMouse ? 0.22 : 0.1) }
+                        GradientStop { position: 0.51; color: Qt.rgba(0, 0, 0, 0.08) }
+                        GradientStop { position: 1; color: Theme.withAlpha(Theme.coral, foldArea.containsMouse ? 0.45 : 0.22) }
+                    }
+                }
+                Rectangle {   // box: a sharp inked square button, a flat offset shadow
+                    visible: toggle.kind === "box"
+                    x: 2; y: 2; width: parent.width; height: parent.height
+                    color: "#000000"
+                }
+                Rectangle {
+                    visible: toggle.kind === "box"
+                    anchors.fill: parent
+                    color: foldArea.containsMouse ? Theme.accent : Theme.card
+                    border { width: 2; color: "#000000" }
+                }
+                Shape {
+                    id: foldPill
+                    visible: toggle.kind === "angled"
+                    anchors.fill: parent
+                    preferredRendererType: Shape.CurveRenderer
+                    readonly property real s: height / 2
+                    ShapePath {
+                        strokeWidth: 1
+                        strokeColor: foldArea.containsMouse ? Theme.accent : Theme.withAlpha(Theme.ink, 0.55)
+                        fillColor: "transparent"
+                        PathSvg { path: `M ${foldPill.s + 0.5} 0.5 H ${foldPill.width - 0.5} L ${foldPill.width - foldPill.s - 0.5} ${foldPill.height - 0.5} H 0.5 Z` }
+                    }
+                }
+                Text {
+                    id: foldText
+                    anchors.centerIn: parent
+                    text: card.collapsed ? "[ + ]" : "[ - ]"
+                    color: toggle.kind === "box" ? (foldArea.containsMouse ? (Theme.contrast("#000000", Theme.accent) >= Theme.contrast("#FFFFFF", Theme.accent) ? "#000000" : "#FFFFFF") : Theme.ink)
+                         : toggle.kind === "glass" ? Theme.ink
+                         : foldArea.containsMouse ? Theme.accent : Theme.inkSoft
+                    font { family: toggle.kind === "angled" ? Theme.mono : Theme.sans; pixelSize: 10
+                           weight: toggle.kind === "angled" ? Font.Light : Font.Bold }
+                }
+                MouseArea {
+                    id: foldArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: card.collapsed = !card.collapsed
+                    ToolTip.visible: containsMouse
+                    ToolTip.delay: 500
+                    ToolTip.text: card.collapsed ? "Expand" : "Collapse"
+                }
+            }
             Row {   // a gadget's gear and close box
                 visible: Theme.gadgets
                 Layout.alignment: Qt.AlignTop | Qt.AlignRight

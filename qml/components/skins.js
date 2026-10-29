@@ -35,7 +35,8 @@ var colorKeys = ["background", "cardBackground", "cardBackgroundHover", "textPri
                  "accent", "accentSecondary", "accentTertiary", "accentGood", "border", "shadowColor",
                  "gaugeTrack", "gaugeFillUsage", "gaugeFillTemp", "sparkline", "sparklineFill",
                  "netDown", "netUp", "gaugeFillEdge", "sparklineDanger", "sparklineHot", "commentary",
-                 "textOnBackground"]           // text drawn straight on `background` (mastheads); default: whichever reads
+                 "textOnBackground",           // text drawn straight on `background` (mastheads); default: whichever reads
+                 "borderActive"]               // the border of the card in focus (hovered, or the open section)
 var quipKeys = ["nominal", "moderate", "highLoad", "critical", "night"]
 var frameColorKeys = ["dpad", "brackets", "slash", "watermarkColor", "rivets", "dials", "plaque", "plaqueText", "plaqueSubtext", "slime", "rim"]
 
@@ -117,12 +118,20 @@ function parseChrome(ch, dir) {
 // caps with a shadow, a settings gear and a close box at the top right.
 function parseSections(s, dir) {
     s = s && typeof s === "object" ? s : {}
-    return { style: oneOf(s.style, ["card", "groupband", "gadget"]) || "card",
+    // "flagtab": a solid accent flag with a 45° right edge holding the
+    // section's number and title ("1 — WEATHER"), the fold toggle as an
+    // angled pill at the right; `flagMark` is drawn in the flag.
+    return { style: oneOf(s.style, ["card", "groupband", "gadget", "flagtab"]) || "card",
+             numbered: s.numbered === true,                                        // "1 — WEATHER": the card's place before its title
+             flagMark: asset(dir, s.flagMark),
+             lights: oneOf(s.lights, ["traffic"]),                                 // card: red, amber, green dots before the title
+             toggle: oneOf(s.toggle, ["angled", "glass", "box"]),                  // the fold toggle [ + ] at the top right; flagtab: angled
+
              screws: s.screws === true,                                            // a mounting screw in each corner
              tints: colorMap(s.tints, ["cpu", "gpu", "memory", "network", "disk", "weather"]),   // a card's own surface
              gear: asset(dir, s.gear),                                             // gadget: the settings button's icon
              close: asset(dir, s.close),                                           // gadget: the close box
-             gloss: number(s.gloss, 0, 1),                                         // gadget: the sheen's height, of the panel
+             gloss: number(s.gloss, 0, 1),                                         // gadget, card: a curved sheen over this much of the panel's top
              uppercase: s.uppercase !== false,
              titleSize: number(s.titleSize, 8, 18),
              colors: colorMap(s, sectionColorKeys) }
@@ -135,6 +144,7 @@ function parseControls(c, dir) {
              coreGraph: oneOf(c.coreGraph, ["multi"]),                              // multi: one jagged trace per core, a row each
              coreColors: (Array.isArray(c.coreColors) ? c.coreColors : []).slice(0, 16).map(color).filter(v => v),
              coreLabel: text(c.coreLabel, 12),                                      // "UNIT R-" → UNIT R-1, R-2, …
+             meterColors: colorMap(c.meterColors, meterKeys),                       // a meter's fill by what it measures, over gaugeUsage
              meterLabel: c.meterLabel === true,                                     // "44%" at the meter's right end
              graph: oneOf(c.graph, ["taskmgr", "line"]) || "line",
              graphFill: c.graphFill !== false,
@@ -146,6 +156,7 @@ function parseControls(c, dir) {
              dialDangerFrom: number(c.dialDangerFrom, 30, 150),                     // °C where its red zone starts
              colors: colorMap(c, controlColorKeys) }
 }
+var meterKeys = ["cpu", "gpu", "memory", "swap", "disk", "battery"]
 // `art`: a hero illustration a card shows in its free corner (the CPU and
 // GPU cards, the weather pane), in place of nothing.
 var artKeys = ["cpu", "gpu", "memory", "network", "disk", "weather"]
@@ -177,6 +188,9 @@ function parseGeometry(g) {
         pillRadius: number(g.pillRadius, 0, 40),
         chamferCut: number(g.chamferCut, 0, 24),
         pillChamferCut: number(g.pillChamferCut, 0, 16),
+        // which corners a chamfer cuts: "tl", "tr", "br", "bl" (default: top-right and bottom-left)
+        chamferCorners: (Array.isArray(g.chamferCorners) ? g.chamferCorners : []).filter(c => ["tl", "tr", "br", "bl"].indexOf(c) >= 0),
+        segments: number(g.segments, 4, 40),                    // blocks in a segmented bar; default: the bar decides
         borderStyle: oneOf(g.borderStyle, ["solid", "dashed", "tech-brackets", "double"]),
         borderWidth: number(g.borderWidth, 0, 6),
         hasCornerBrackets: typeof g.hasCornerBrackets === "boolean" ? g.hasCornerBrackets : null,
@@ -199,7 +213,7 @@ function colorMap(c, keys) {
 // One of `variants.light` / `variants.dark`: colours (the `colors` keys,
 // laid over them), the badge's, and the frame's and ground line's
 // colours. The Guide's light / dark / Solar Auto setting picks one.
-function parseVariant(v) {
+function parseVariant(v, dir) {
     if (!v || typeof v !== "object") return null
     var frame = v.frame || {}
     return {
@@ -214,7 +228,11 @@ function parseVariant(v) {
         chrome: colorMap(v.chrome, chromeColorKeys),
         sections: colorMap(v.sections, sectionColorKeys),
         tints: colorMap((v.sections || {}).tints, ["cpu", "gpu", "memory", "network", "disk", "weather"]),
-        controls: colorMap(v.controls, controlColorKeys)
+        art: parseArt(v.art, dir),                       // this variant's own hero art, over the skin's
+        icons: parseIcons(v.icons, dir),                 // and icons (a moon by night, a sun by day)
+        name: text(v.variantName, 40),
+        controls: colorMap(v.controls, controlColorKeys),
+        meterColors: colorMap((v.controls || {}).meterColors, meterKeys)   // over controls.meterColors
     }
 }
 
@@ -243,8 +261,8 @@ function parseStyle(json, dir) {
     var offset = Array.isArray(c.shadowOffset) ? c.shadowOffset : []
     return {
         isDark: typeof json.isDark === "boolean" ? json.isDark : null,     // ignored when there are variants
-        variants: parseVariant(variants.light) && parseVariant(variants.dark)
-                  ? { light: parseVariant(variants.light), dark: parseVariant(variants.dark) } : null,
+        variants: parseVariant(variants.light, dir) && parseVariant(variants.dark, dir)
+                  ? { light: parseVariant(variants.light, dir), dark: parseVariant(variants.dark, dir) } : null,
         clockQuips: clockQuips,
         aiQuip: text(json.aiQuip, 120),
         // tumbling down the weather hero in rain and thunder, in place of the whale and the petunias
@@ -271,6 +289,10 @@ function parseStyle(json, dir) {
         controls: parseControls(json.controls, dir),
         icons: parseIcons(json.icons, dir),
         art: parseArt(json.art, dir),
+        // `footer`: a mark and a tracked line along the bottom (the widget's foot, the window's status line)
+        footer: json.footer && typeof json.footer === "object"
+                ? { mark: asset(dir, json.footer.mark), label: text(json.footer.label, 40), motto: text(json.footer.motto, 80),
+                    endMark: asset(dir, json.footer.endMark) } : null,         // a second mark at the far end
         // `narrative.vignettes`: a character in a card's corner with a speech bubble
         vignettes: (Array.isArray(story2.vignettes) ? story2.vignettes : []).slice(0, 6).map(v => ({
             at: oneOf((v || {}).at, ["cpu", "gpu", "weather", "memory", "footer"]),

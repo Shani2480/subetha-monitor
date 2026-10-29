@@ -170,6 +170,7 @@ Flickable {
                 tempValue: tab.cpu.temp || 0
                 tempLevel: Alerts.cpuTemp
                 loadLevel: Alerts.cpuLoad
+                metric: "cpu"
                 live: tab.shown
                 segmentHeight: 12
                 segments: 30
@@ -304,6 +305,7 @@ Flickable {
                 tempValue: tab.gpu.temp || 0
                 tempLevel: Alerts.gpuTemp
                 loadLevel: Alerts.gpuLoad
+                metric: "gpu"
                 live: tab.shown
                 segmentHeight: 12
                 segments: 30
@@ -372,6 +374,7 @@ Flickable {
             SegmentBar {
                 Layout.fillWidth: true
                 fraction: (tab.mem.percent || 0) / 100
+                metric: "memory"
                 segments: 30
                 segmentHeight: 12
             }
@@ -393,6 +396,7 @@ Flickable {
                 SegmentBar {
                     Layout.fillWidth: true
                     fraction: (tab.mem.swapPercent || 0) / 100
+                    metric: "swap"
                     segments: 30
                 }
                 Text {
@@ -552,6 +556,7 @@ Flickable {
                     SegmentBar {
                         Layout.fillWidth: true
                         fraction: diskRow.modelData.percent / 100
+                        metric: "disk"
                         segments: 30
                         fill: diskRow.critical ? Theme.critColor : Theme.load(diskRow.modelData.percent)
                     }
